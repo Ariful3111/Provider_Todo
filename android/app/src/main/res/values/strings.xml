@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">provider_todo</string>
+
+    <string name="facebook_app_id">914816998196706</string>
+
+    <string name="fb_login_protocol_scheme">
+        fb914816998196706
+    </string>
+
+    <string name="facebook_client_token">
+        cd39a525ebd7326b931c7fe5b99f1464
+    </string>
+</resources>
