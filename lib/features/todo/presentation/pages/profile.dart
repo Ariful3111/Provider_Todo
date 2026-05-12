@@ -4,6 +4,7 @@ import 'package:provider_todo/core/constant/app_colors.dart';
 import 'package:provider_todo/core/shared/widgets/app_primary_button.dart';
 import 'package:provider_todo/core/shared/widgets/app_scaffold.dart';
 import 'package:provider_todo/features/auth/presentation/provider/auth_provider.dart';
+import 'package:provider_todo/features/auth/presentation/provider/parts/signin_provider.dart';
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -18,7 +19,7 @@ class _ProfileState extends State<Profile> {
     return AppScaffold(
       child: Column(
         children: [
-          Consumer<AuthProvider>(
+          Consumer<SignInProvider>(
             builder: (context, auth, _) {
               return AppPrimaryButton(
                 label: 'Logout',

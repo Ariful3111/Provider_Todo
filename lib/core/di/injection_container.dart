@@ -2,7 +2,14 @@
 import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider_todo/core/constant/static_datas.dart';
+import 'package:provider_todo/core/theme/theme_provider.dart';
 import 'package:provider_todo/features/auth/presentation/provider/auth_provider.dart';
+import 'package:provider_todo/features/auth/presentation/provider/oauth_provider.dart';
+import 'package:provider_todo/features/auth/presentation/provider/parts/auth_listener.dart';
+import 'package:provider_todo/features/auth/presentation/provider/parts/forgot_password_provider.dart';
+import 'package:provider_todo/features/auth/presentation/provider/parts/otp_provider.dart';
+import 'package:provider_todo/features/auth/presentation/provider/parts/signin_provider.dart';
+import 'package:provider_todo/features/auth/presentation/provider/parts/signup_provider.dart';
 import 'package:provider_todo/features/todo/data/datasources/todo_local_datasources.dart';
 import 'package:provider_todo/features/todo/data/datasources/todo_remote_datasources.dart';
 import 'package:provider_todo/features/todo/data/repositories/todo_repository_impl.dart';
@@ -25,8 +32,7 @@ Future<void> initDependencies() async {
   _registerDataSources();
   _registerRepositories();
   _registerUseCases();
-  _registerProviders();
-  _registerAuth();            // ← separated for clarity
+  _registerProviders();           // ← separated for clarity
 }
 
 // ─── Hive ─────────────────────────────────────────────────────
@@ -78,7 +84,14 @@ void _registerUseCases() {
 }
 
 // ─── Todo Provider ────────────────────────────────────────────
+// lib/core/di/injection_container.dart
+// ─── Only change needed — update _registerProviders() ─────
+
 void _registerProviders() {
+
+  // ─────────────────────────────────────
+  // Todo Provider
+  // ─────────────────────────────────────
   sl.registerFactory(
     () => TodosProvider(
       getTodosUseCase: sl(),
@@ -86,13 +99,78 @@ void _registerProviders() {
       editTodoUseCase: sl(),
       deleteTodoUseCase: sl(),
       toggleTodoUseCase: sl(),
+      repository:
+          sl<TodoRepository>() as TodoRepositoryImpl,
     ),
   );
-}
 
-// ─── Auth Provider ────────────────────────────────────────────
-void _registerAuth() {
+  // ─────────────────────────────────────
+  // Theme Provider
+  // ─────────────────────────────────────
   sl.registerFactory(
-    () => AuthProvider(sl<SupabaseClient>()),
+    () => ThemeProvider(),
+  );
+
+  // ─────────────────────────────────────
+  // Base Auth Provider
+  // ─────────────────────────────────────
+  sl.registerFactory(
+    () => AuthProvider(
+      sl<SupabaseClient>(),
+    ),
+  );
+
+  // ─────────────────────────────────────
+  // Sign In Provider
+  // ─────────────────────────────────────
+  sl.registerFactory(
+    () => SignInProvider(
+      sl<SupabaseClient>(),
+    ),
+  );
+
+  // ─────────────────────────────────────
+  // Sign Up Provider
+  // ─────────────────────────────────────
+  sl.registerFactory(
+    () => SignUpProvider(
+      sl<SupabaseClient>(),
+    ),
+  );
+
+  // ─────────────────────────────────────
+  // OTP Provider
+  // ─────────────────────────────────────
+  sl.registerFactory(
+    () => OtpProvider(
+      sl<SupabaseClient>(),
+    ),
+  );
+
+  // ─────────────────────────────────────
+  // OAuth Provider
+  // ─────────────────────────────────────
+  sl.registerFactory(
+    () => OAuthSignInProvider(
+      sl<SupabaseClient>(),
+    ),
+  );
+
+  // ─────────────────────────────────────
+  // Password Recovery Provider
+  // ─────────────────────────────────────
+  sl.registerFactory(
+    () => ForgotPasswordProvider(
+      sl<SupabaseClient>(),
+    ),
+  );
+
+  // ─────────────────────────────────────
+  // Session Provider
+  // ─────────────────────────────────────
+  sl.registerFactory(
+    () => AuthListener(
+      sl<SupabaseClient>(),
+    ),
   );
 }

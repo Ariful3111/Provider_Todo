@@ -15,6 +15,7 @@ import 'package:provider_todo/core/shared/widgets/app_scaffold.dart';
 import 'package:provider_todo/core/shared/widgets/app_text.dart';
 import 'package:provider_todo/core/shared/widgets/app_text_field.dart';
 import 'package:provider_todo/features/auth/presentation/provider/auth_provider.dart';
+import 'package:provider_todo/features/auth/presentation/provider/parts/signup_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SignUpPage extends StatefulWidget {
@@ -39,12 +40,12 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _phoneValid = false;
 
   AuthStatus? _lastHandledStatus;
-  late final AuthProvider _authProvider;
+  late final SignUpProvider _authProvider;
 
   @override
   void initState() {
     super.initState();
-    _authProvider = context.read<AuthProvider>();
+    _authProvider = context.read<SignUpProvider>();
     _authProvider.addListener(_onAuthChanged);
   }
 

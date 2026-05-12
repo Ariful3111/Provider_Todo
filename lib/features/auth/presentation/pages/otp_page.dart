@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:provider_todo/features/auth/presentation/provider/parts/otp_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider_todo/core/constant/app_colors.dart';
 import 'package:provider_todo/core/routes/app_routes.dart';
@@ -34,11 +35,11 @@ class _OtpPageState extends State<OtpPage> {
       return;
     }
 
-    final auth = context.read<AuthProvider>();
+    final auth = context.read<OtpProvider>();
 
     if (_isSignupOtp) {
       // ✅ Email OTP for signup verification
-      await auth.verifyEmailSignupOtp(_otpCode);
+      await auth.verifyRecoveryOtp(_otpCode);
       if (!mounted) return;
       if (auth.status == AuthStatus.success) {
         context.go(AppRoutes.home);
@@ -47,7 +48,7 @@ class _OtpPageState extends State<OtpPage> {
       }
     } else if (_isRecoveryOtp) {
       // ✅ Recovery OTP for forgot password
-      await auth.verifyEmailOtp(_otpCode);
+      await auth.verifyRecoveryOtp(_otpCode);
       if (!mounted) return;
       if (auth.status == AuthStatus.success) {
         context.go(AppRoutes.newPassword);
@@ -58,11 +59,11 @@ class _OtpPageState extends State<OtpPage> {
   }
 
   void _resend() async {
-    final auth = context.read<AuthProvider>();
+    final auth = context.read<OtpProvider>();
     if (_isSignupOtp) {
-      await auth.resendEmailOtp();
+      await auth.resendSignupOtp();
     } else {
-      await auth.resendEmailOtp();
+      await auth.resendSignupOtp();
     }
     if (!mounted) return;
     if (auth.status == AuthStatus.otpSent) {

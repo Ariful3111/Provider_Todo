@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:provider_todo/features/auth/presentation/provider/parts/forgot_password_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider_todo/core/constant/app_colors.dart';
 import 'package:provider_todo/core/routes/app_routes.dart';
@@ -32,7 +33,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   void _sendOtp() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final auth = context.read<AuthProvider>();
+    final auth = context.read<ForgotPasswordProvider>();
     final email = _emailController.text.trim();
 
     // ✅ Step 1 — Check if email is registered

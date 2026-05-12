@@ -12,6 +12,8 @@ import 'package:provider_todo/core/shared/widgets/app_scaffold.dart';
 import 'package:provider_todo/core/shared/widgets/app_text.dart';
 import 'package:provider_todo/core/shared/widgets/app_text_field.dart';
 import 'package:provider_todo/features/auth/presentation/provider/auth_provider.dart';
+import 'package:provider_todo/features/auth/presentation/provider/parts/forgot_password_provider.dart';
+import 'package:provider_todo/features/auth/presentation/provider/parts/signin_provider.dart';
 
 class NewPasswordView extends StatefulWidget {
   const NewPasswordView({super.key});
@@ -43,7 +45,7 @@ class _NewPasswordViewState extends State<NewPasswordView> {
   void _setPass() async {
     // ✅ FIX 1: validate() now works because Form widget wraps the fields
     if (!_formKey.currentState!.validate()) return;
-    final auth = context.read<AuthProvider>();
+    final auth = context.read<ForgotPasswordProvider>();
     await auth.updatePassword(_passwordController.text);
 
     if (!mounted) return;
@@ -192,7 +194,7 @@ class _NewPasswordViewState extends State<NewPasswordView> {
 
               // ── Back to login ─────────────────────────────
               InkWell(
-                onTap: () => auth.signOut(),
+                onTap: () =>  context.read<SignInProvider>().signOut(),
                 borderRadius: BorderRadius.circular(8),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(

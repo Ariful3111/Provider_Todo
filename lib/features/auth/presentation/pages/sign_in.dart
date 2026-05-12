@@ -12,6 +12,8 @@ import 'package:provider_todo/core/shared/widgets/app_text.dart';
 import 'package:provider_todo/core/shared/widgets/app_text_field.dart';
 import 'package:provider_todo/core/shared/widgets/social_login_button.dart';
 import 'package:provider_todo/features/auth/presentation/provider/auth_provider.dart';
+import 'package:provider_todo/features/auth/presentation/provider/oauth_provider.dart';
+import 'package:provider_todo/features/auth/presentation/provider/parts/signin_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SignInPage extends StatefulWidget {
@@ -27,12 +29,16 @@ class _SignInPageState extends State<SignInPage> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
+  late final SignInProvider signInProvider;
   late final AuthProvider _authProvider;
+  late final OAuthSignInProvider oAuthProvider;
 
   @override
   void initState() {
     super.initState();
     _authProvider = context.read<AuthProvider>();
+    signInProvider = context.read<SignInProvider>();
+    oAuthProvider = context.read<OAuthSignInProvider>();
     _authProvider.addListener(_onAuthChanged);
   }
 
@@ -66,7 +72,7 @@ class _SignInPageState extends State<SignInPage> {
 
   void _signIn() async {
     if (!_formKey.currentState!.validate()) return;
-    await _authProvider.signIn(
+    await signInProvider.signIn(
       email: _emailController.text.trim(),
       password: _passwordController.text,
     );
@@ -179,8 +185,9 @@ class _SignInPageState extends State<SignInPage> {
                 isLoading: auth.isProviderLoading(OAuthProvider.google),
                 onPressed: isAnyLoading
                     ? null
-                    : () => _authProvider
-                        .signInWithProvider(OAuthProvider.google),
+                    : () => oAuthProvider.signInWithProvider(
+                        OAuthProvider.google,
+                      ),
               ),
               const SizedBox(height: 12),
 
@@ -192,8 +199,9 @@ class _SignInPageState extends State<SignInPage> {
                 isLoading: auth.isProviderLoading(OAuthProvider.facebook),
                 onPressed: isAnyLoading
                     ? null
-                    : () => _authProvider
-                        .signInWithProvider(OAuthProvider.facebook),
+                    : () => oAuthProvider.signInWithProvider(
+                        OAuthProvider.facebook,
+                      ),
               ),
               const SizedBox(height: 12),
 
@@ -207,8 +215,9 @@ class _SignInPageState extends State<SignInPage> {
                 isLoading: auth.isProviderLoading(OAuthProvider.github),
                 onPressed: isAnyLoading
                     ? null
-                    : () => _authProvider
-                        .signInWithProvider(OAuthProvider.github),
+                    : () => oAuthProvider.signInWithProvider(
+                        OAuthProvider.github,
+                      ),
               ),
               const SizedBox(height: 36),
 
@@ -245,8 +254,7 @@ class _SignInPageState extends State<SignInPage> {
   }
 
   Widget _buildDivider(bool isDark) {
-    final dividerColor =
-        isDark ? AppColors.borderDark : AppColors.dividerColor;
+    final dividerColor = isDark ? AppColors.borderDark : AppColors.dividerColor;
     return Row(
       children: [
         Expanded(child: Divider(color: dividerColor)),
@@ -272,8 +280,7 @@ class _SignInPageState extends State<SignInPage> {
         AppText(
           "Don't have an account? ",
           fontSize: 14,
-          color:
-              isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
         ),
         GestureDetector(
           onTap: () => context.push(AppRoutes.signUp),
