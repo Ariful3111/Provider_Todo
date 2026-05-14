@@ -29,28 +29,50 @@ class _SignInPageState extends State<SignInPage> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
-  late final SignInProvider signInProvider;
+  late final SignInProvider _signInProvider;
   late final AuthProvider _authProvider;
-  late final OAuthSignInProvider oAuthProvider;
+  late final OAuthSignInProvider _oAuthProvider;
 
   @override
   void initState() {
     super.initState();
     _authProvider = context.read<AuthProvider>();
-    signInProvider = context.read<SignInProvider>();
-    oAuthProvider = context.read<OAuthSignInProvider>();
+    _signInProvider = context.read<SignInProvider>();
+    _oAuthProvider = context.read<OAuthSignInProvider>();
+
+    // ✅ Listen to signInProvider for email sign-in errors
+    _signInProvider.addListener(_onSignInChanged);
+
+    // ✅ Listen to authProvider for OAuth errors
     _authProvider.addListener(_onAuthChanged);
   }
 
+  // ✅ Handles email sign-in errors
+  void _onSignInChanged() {
+    if (!mounted) return;
+    if (_signInProvider.status == AuthStatus.error) {
+      _showErrorSnackbar(
+        _signInProvider.errorMessage ?? 'Sign in failed',
+      );
+    }
+  }
+
+  // ✅ Handles OAuth errors
   void _onAuthChanged() {
     if (!mounted) return;
-    // ✅ Only show error snackbar — navigation handled by GoRouter redirect
     if (_authProvider.status == AuthStatus.error) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      _showErrorSnackbar(
+        _authProvider.errorMessage ?? 'Sign in failed',
+      );
+    }
+  }
+
+  void _showErrorSnackbar(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
         SnackBar(
-          content: AppText.whiteText(
-            _authProvider.errorMessage ?? 'Sign in failed',
-          ),
+          content: AppText.whiteText(message),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.all(16),
@@ -59,11 +81,12 @@ class _SignInPageState extends State<SignInPage> {
           ),
         ),
       );
-    }
   }
 
   @override
   void dispose() {
+    // ✅ Remove both listeners — no context.read() in dispose
+    _signInProvider.removeListener(_onSignInChanged);
     _authProvider.removeListener(_onAuthChanged);
     _emailController.dispose();
     _passwordController.dispose();
@@ -72,7 +95,7 @@ class _SignInPageState extends State<SignInPage> {
 
   void _signIn() async {
     if (!_formKey.currentState!.validate()) return;
-    await signInProvider.signIn(
+    await _signInProvider.signIn(
       email: _emailController.text.trim(),
       password: _passwordController.text,
     );
@@ -80,12 +103,15 @@ class _SignInPageState extends State<SignInPage> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Watch both providers for loading states
     final auth = context.watch<AuthProvider>();
+    final signIn = context.watch<SignInProvider>();
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // ✅ Granular loading — each button knows its own state
-    final bool isEmailLoading = auth.isEmailLoading;
-    final bool isAnyLoading = auth.isEmailLoading || auth.isOAuthLoading;
+    // ✅ Email loading comes from signInProvider
+    final bool isEmailLoading = signIn.isEmailLoading;
+    // ✅ OAuth loading comes from authProvider
+    final bool isAnyLoading = signIn.isEmailLoading || auth.isOAuthLoading;
 
     return AppScaffold(
       child: SingleChildScrollView(
@@ -156,16 +182,15 @@ class _SignInPageState extends State<SignInPage> {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
+                  onPressed: () => context.push(AppRoutes.forgotPassword),
                   child: AppText(
                     'Forgot Password?',
                     color: AppColors.primaryColor,
                   ),
-                  onPressed: () => context.push(AppRoutes.forgotPassword),
                 ),
               ),
 
               // ── Sign In Button ────────────────────────────
-              // ✅ Only loads when EMAIL sign in is in progress
               AppPrimaryButton(
                 label: 'Sign In',
                 isLoading: isEmailLoading,
@@ -177,7 +202,6 @@ class _SignInPageState extends State<SignInPage> {
               const SizedBox(height: 24),
 
               // ── Google ────────────────────────────────────
-              // ✅ Each social button only shows loading for itself
               SocialLoginButton(
                 label: 'Continue with Google',
                 icon: Icons.g_mobiledata_rounded,
@@ -185,9 +209,9 @@ class _SignInPageState extends State<SignInPage> {
                 isLoading: auth.isProviderLoading(OAuthProvider.google),
                 onPressed: isAnyLoading
                     ? null
-                    : () => oAuthProvider.signInWithProvider(
-                        OAuthProvider.google,
-                      ),
+                    : () => _oAuthProvider.signInWithProvider(
+                          OAuthProvider.google,
+                        ),
               ),
               const SizedBox(height: 12),
 
@@ -199,9 +223,9 @@ class _SignInPageState extends State<SignInPage> {
                 isLoading: auth.isProviderLoading(OAuthProvider.facebook),
                 onPressed: isAnyLoading
                     ? null
-                    : () => oAuthProvider.signInWithProvider(
-                        OAuthProvider.facebook,
-                      ),
+                    : () => _oAuthProvider.signInWithProvider(
+                          OAuthProvider.facebook,
+                        ),
               ),
               const SizedBox(height: 12),
 
@@ -215,9 +239,9 @@ class _SignInPageState extends State<SignInPage> {
                 isLoading: auth.isProviderLoading(OAuthProvider.github),
                 onPressed: isAnyLoading
                     ? null
-                    : () => oAuthProvider.signInWithProvider(
-                        OAuthProvider.github,
-                      ),
+                    : () => _oAuthProvider.signInWithProvider(
+                          OAuthProvider.github,
+                        ),
               ),
               const SizedBox(height: 36),
 
@@ -240,7 +264,8 @@ class _SignInPageState extends State<SignInPage> {
             color: AppColors.primaryColor,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(Icons.check_rounded, color: Colors.white, size: 26),
+          child:
+              const Icon(Icons.check_rounded, color: Colors.white, size: 26),
         ),
         const SizedBox(width: 10),
         AppText(
@@ -254,7 +279,8 @@ class _SignInPageState extends State<SignInPage> {
   }
 
   Widget _buildDivider(bool isDark) {
-    final dividerColor = isDark ? AppColors.borderDark : AppColors.dividerColor;
+    final dividerColor =
+        isDark ? AppColors.borderDark : AppColors.dividerColor;
     return Row(
       children: [
         Expanded(child: Divider(color: dividerColor)),
@@ -280,7 +306,8 @@ class _SignInPageState extends State<SignInPage> {
         AppText(
           "Don't have an account? ",
           fontSize: 14,
-          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+          color:
+              isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
         ),
         GestureDetector(
           onTap: () => context.push(AppRoutes.signUp),

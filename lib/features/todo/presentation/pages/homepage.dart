@@ -11,7 +11,7 @@ import 'package:provider_todo/features/todo/presentation/widgets/todo_list.dart'
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class Homepage extends StatefulWidget {
-  const Homepage({super.key,});
+  const Homepage({super.key});
 
   @override
   State<Homepage> createState() => _HomepageState();
@@ -22,82 +22,114 @@ class _HomepageState extends State<Homepage> {
   int _currentIndex = 0;
   late final PageController _pageController;
 
-late final AuthProvider _authProvider;
-bool _successShown = false;
+  late final AuthProvider _authProvider;
+  bool _successShown = false;
 
-@override
-void initState() {
-  super.initState();
-  _pageController = PageController();
-  _authProvider = context.read<AuthProvider>();
-  _authProvider.addListener(_onAuthChanged);
+  late final TodosProvider _todosProvider;
 
-  // ✅ Show success dialog on first load after OAuth
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    _checkShowWelcome();
-  });
-}
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
 
-void _checkShowWelcome() {
-  if (_successShown) return;
-  final user = Supabase.instance.client.auth.currentUser;
-  if (user == null) return;
+    _authProvider = context.read<AuthProvider>();
+    _authProvider.addListener(_onAuthChanged);
 
-  final provider = user.appMetadata['provider'] ?? '';
-  final isOAuth = ['google', 'github', 'facebook'].contains(provider);
+    // ✅ Listen to todos errors
+    _todosProvider = context.read<TodosProvider>();
+    _todosProvider.addListener(_onTodosChanged);
 
-  if (isOAuth) {
-    _successShown = true;
-    _showWelcomeSnackbar(user.userMetadata?['full_name'] ?? 
-                         user.userMetadata?['name'] ?? 
-                         user.email ?? 'User');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _todosProvider.loadTodos();
+      _checkShowWelcome();
+    });
   }
-}
 
-void _onAuthChanged() {
-  if (!mounted) return;
-  if (_authProvider.status == AuthStatus.error) {
+  void _checkShowWelcome() {
+    if (_successShown) return;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    final provider = user.appMetadata['provider'] ?? '';
+    final isOAuth = ['google', 'github', 'facebook'].contains(provider);
+
+    if (isOAuth) {
+      _successShown = true;
+      _showWelcomeSnackbar(
+        user.userMetadata?['full_name'] ??
+            user.userMetadata?['name'] ??
+            user.email ??
+            'User',
+      );
+    }
+  }
+
+  void _onAuthChanged() {
+    if (!mounted) return;
+    if (_authProvider.status == AuthStatus.error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppText.whiteText(
+            _authProvider.errorMessage ?? 'Something went wrong',
+          ),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    }
+  }
+
+  void _showWelcomeSnackbar(String name) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: AppText.whiteText(
-          _authProvider.errorMessage ?? 'Something went wrong',
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle_rounded, color: Colors.white),
+            const SizedBox(width: 10),
+            Expanded(child: AppText.whiteText('Welcome, $name! 🎉')),
+          ],
         ),
-        backgroundColor: AppColors.error,
+        backgroundColor: AppColors.success,
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
         margin: const EdgeInsets.all(16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
-}
 
-void _showWelcomeSnackbar(String name) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Row(
-        children: [
-          const Icon(Icons.check_circle_rounded, color: Colors.white),
-          const SizedBox(width: 10),
-          Expanded(
-            child: AppText.whiteText('Welcome, $name! 🎉'),
+  void _onTodosChanged() {
+    if (!mounted) return;
+    if (_todosProvider.status == TodoStatus.error &&
+        _todosProvider.errorMessage != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppText.whiteText(
+            _todosProvider.errorMessage ?? 'Todo operation failed',
           ),
-        ],
-      ),
-      backgroundColor: AppColors.success,
-      behavior: SnackBarBehavior.floating,
-      duration: const Duration(seconds: 3),
-      margin: const EdgeInsets.all(16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    ),
-  );
-}
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    }
+  }
 
-@override
-void dispose() {
-  _authProvider.removeListener(_onAuthChanged);
-  _pageController.dispose();
-  super.dispose();
-}
+  @override
+  void dispose() {
+    _authProvider.removeListener(_onAuthChanged);
+    _todosProvider.removeListener(_onTodosChanged); // ✅ cleanup
+    _pageController.dispose();
+    super.dispose();
+  }
+
   void _onTabTapped(int index) {
     setState(() => _currentIndex = index);
     _pageController.animateToPage(
@@ -110,7 +142,6 @@ void dispose() {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<TodosProvider>();
-
     return Scaffold(
       appBar: AppBar(
         title: AnimatedSwitcher(
@@ -146,7 +177,7 @@ void dispose() {
       body: PageView(
         controller: _pageController,
         onPageChanged: (index) => setState(() => _currentIndex = index),
-        children: const [TodoList(), CompletedTodosPage(),Profile()],
+        children: const [TodoList(), CompletedTodosPage(), Profile()],
       ),
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Theme.of(context).primaryColor,
@@ -172,10 +203,7 @@ void dispose() {
             label: 'Completed',
           ),
           BottomNavigationBarItem(
-            icon: Icon(
-              Icons.person,
-              color: Theme.of(context).primaryColor,
-            ),
+            icon: Icon(Icons.person, color: Theme.of(context).primaryColor),
             label: 'Profile',
           ),
         ],

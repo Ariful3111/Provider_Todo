@@ -98,6 +98,13 @@ class TodosProvider extends ChangeNotifier {
         // Rollback if failed
         _todos.removeWhere((t) => t.id == todo.id);
         _errorMessage = failure.message;
+      //  notifyListeners();
+
+        // ✅ Auto-clear error after showing it
+        Future.delayed(const Duration(seconds: 1), () {
+          _errorMessage = null;
+          notifyListeners();
+        });
       },
       (savedTodo) {
         // Replace optimistic with saved version
@@ -158,14 +165,11 @@ class TodosProvider extends ChangeNotifier {
 
     // Delete from Supabase
     final result = await repository.deleteTodoRemote(id);
-    result.fold(
-      (failure) {
-        debugPrint('❌ Delete todo error: ${failure.message}');
-        _todos.insert(index, deletedTodo); // rollback
-        _errorMessage = failure.message;
-      },
-      (_) => debugPrint('✅ Todo deleted from Supabase: $id'),
-    );
+    result.fold((failure) {
+      debugPrint('❌ Delete todo error: ${failure.message}');
+      _todos.insert(index, deletedTodo); // rollback
+      _errorMessage = failure.message;
+    }, (_) => debugPrint('✅ Todo deleted from Supabase: $id'));
     notifyListeners();
   }
 

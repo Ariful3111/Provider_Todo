@@ -1,10 +1,5 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
-
 part of 'todo_model.dart';
-
-// **************************************************************************
-// TypeAdapterGenerator
-// **************************************************************************
 
 class TodoModelAdapter extends TypeAdapter<TodoModel> {
   @override
@@ -16,11 +11,13 @@ class TodoModelAdapter extends TypeAdapter<TodoModel> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
+    // ✅ Actually use the fields map to construct the object
     return TodoModel(
-      id: '',
-      title: '',
-      description: '',
-      createdAt: DateTime.now(),
+      id:          fields[0] as String,
+      title:       fields[1] as String,
+      description: fields[2] as String,
+      createdAt:   fields[3] as DateTime,
+      isCompleted: fields[4] as bool? ?? false,
     );
   }
 

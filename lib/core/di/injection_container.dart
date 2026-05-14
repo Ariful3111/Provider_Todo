@@ -89,88 +89,51 @@ void _registerUseCases() {
 
 void _registerProviders() {
 
-  // ─────────────────────────────────────
-  // Todo Provider
-  // ─────────────────────────────────────
-  sl.registerFactory(
-    () => TodosProvider(
-      getTodosUseCase: sl(),
-      addTodoUseCase: sl(),
-      editTodoUseCase: sl(),
-      deleteTodoUseCase: sl(),
-      toggleTodoUseCase: sl(),
-      repository:
-          sl<TodoRepository>() as TodoRepositoryImpl,
-    ),
-  );
+  // ─── Theme ────────────────────────────────────────────────
+  // ✅ Singleton — theme must be same everywhere in app
+  sl.registerLazySingleton(() => ThemeProvider());
 
-  // ─────────────────────────────────────
-  // Theme Provider
-  // ─────────────────────────────────────
-  sl.registerFactory(
-    () => ThemeProvider(),
-  );
+  // ─── Auth — Base ──────────────────────────────────────────
+  // ✅ Singleton — shared state (isPasswordRecovery etc.)
+  sl.registerLazySingleton(() => AuthProvider(sl<SupabaseClient>()));
 
-  // ─────────────────────────────────────
-  // Base Auth Provider
-  // ─────────────────────────────────────
-  sl.registerFactory(
-    () => AuthProvider(
-      sl<SupabaseClient>(),
-    ),
-  );
+  // ─── Auth Listener ────────────────────────────────────────
+  // ✅ Singleton — must only have ONE auth stream listener
+  // registerFactory would create multiple stream subscriptions ❌
+  sl.registerLazySingleton(() => AuthListener(sl<SupabaseClient>()));
 
-  // ─────────────────────────────────────
-  // Sign In Provider
-  // ─────────────────────────────────────
-  sl.registerFactory(
-    () => SignInProvider(
-      sl<SupabaseClient>(),
-    ),
-  );
+  // ─── Sign In ──────────────────────────────────────────────
+  // ✅ Singleton — login state must persist across pages
+  sl.registerLazySingleton(() => SignInProvider(sl<SupabaseClient>()));
 
-  // ─────────────────────────────────────
-  // Sign Up Provider
-  // ─────────────────────────────────────
-  sl.registerFactory(
-    () => SignUpProvider(
-      sl<SupabaseClient>(),
-    ),
-  );
+  // ─── Sign Up ──────────────────────────────────────────────
+  // ✅ Singleton — stores _pendingFullName, _pendingPhone
+  // registerFactory loses pending data between pages ❌
+  sl.registerLazySingleton(() => SignUpProvider(sl<SupabaseClient>()));
 
-  // ─────────────────────────────────────
-  // OTP Provider
-  // ─────────────────────────────────────
-  sl.registerFactory(
-    () => OtpProvider(
-      sl<SupabaseClient>(),
-    ),
-  );
+  // ─── OTP ──────────────────────────────────────────────────
+  // ✅ Singleton — needs to hold email set from signup/forgot page
+  // registerFactory means email is always empty when OTP page reads it ❌
+  sl.registerLazySingleton(() => OtpProvider(sl<SupabaseClient>()));
 
-  // ─────────────────────────────────────
-  // OAuth Provider
-  // ─────────────────────────────────────
-  sl.registerFactory(
-    () => OAuthSignInProvider(
-      sl<SupabaseClient>(),
-    ),
-  );
+  // ─── OAuth ────────────────────────────────────────────────
+  // ✅ Singleton — loading state must reflect correctly in UI
+  sl.registerLazySingleton(
+      () => OAuthSignInProvider(sl<SupabaseClient>()));
 
-  // ─────────────────────────────────────
-  // Password Recovery Provider
-  // ─────────────────────────────────────
-  sl.registerFactory(
-    () => ForgotPasswordProvider(
-      sl<SupabaseClient>(),
-    ),
-  );
+  // ─── Forgot Password ──────────────────────────────────────
+  // ✅ Singleton — stores email across forgot → otp → new password flow
+  sl.registerLazySingleton(
+      () => ForgotPasswordProvider(sl<SupabaseClient>()));
 
-  // ─────────────────────────────────────
-  // Session Provider
-  // ─────────────────────────────────────
-  sl.registerFactory(
-    () => AuthListener(
-      sl<SupabaseClient>(),
-    ),
-  );
+  // ─── Todo ─────────────────────────────────────────────────
+  // ✅ Singleton — todo list state must be same across all screens
+  sl.registerLazySingleton(() => TodosProvider(
+    getTodosUseCase: sl(),
+    addTodoUseCase: sl(),
+    editTodoUseCase: sl(),
+    deleteTodoUseCase: sl(),
+    toggleTodoUseCase: sl(),
+    repository: sl<TodoRepository>() as TodoRepositoryImpl,
+  ));
 }

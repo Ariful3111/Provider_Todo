@@ -1,14 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-enum AuthStatus {
-  idle,
-  loading,
-  oauthLoading,
-  success,
-  otpSent,
-  error,
-}
+enum AuthStatus { idle, loading, oauthLoading, success, otpSent, error }
 
 class AuthProvider extends ChangeNotifier {
   final SupabaseClient client;
@@ -38,11 +31,9 @@ class AuthProvider extends ChangeNotifier {
 
   bool get isEmailLoading => _status == AuthStatus.loading;
 
-  bool get isOAuthLoading =>
-      _status == AuthStatus.oauthLoading;
+  bool get isOAuthLoading => _status == AuthStatus.oauthLoading;
 
-  OAuthProvider? get loadingOAuthProvider =>
-      _oauthProvider;
+  OAuthProvider? get loadingOAuthProvider => _oauthProvider;
 
   bool isProviderLoading(OAuthProvider provider) =>
       isOAuthLoading && _oauthProvider == provider;
@@ -113,19 +104,26 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setOtpSent() {
+    _status = AuthStatus.otpSent;
+    _errorMessage = null;
+    _errorShown = false;
+    notifyListeners();
+  }
+
   void clearAuthState() {
-  _phoneNumber = '';
-  _email = '';
-  _oauthProvider = null;
-  _isInOtpFlow = false;
-  _isPasswordRecovery = false;
-  _errorShown = false;
+    _phoneNumber = '';
+    _email = '';
+    _oauthProvider = null;
+    _isInOtpFlow = false;
+    _isPasswordRecovery = false;
+    _errorShown = false;
 
-  _status = AuthStatus.idle;
-  _errorMessage = null;
+    _status = AuthStatus.idle;
+    _errorMessage = null;
 
-  notifyListeners();
-}
+    notifyListeners();
+  }
 
   // ─────────────────────────────────────
   // Helpers
@@ -139,12 +137,8 @@ class AuthProvider extends ChangeNotifier {
     debugPrint('ID: ${user.id}');
     debugPrint('Email: ${user.email}');
     debugPrint('Phone: ${user.phone}');
-    debugPrint(
-      'Name: ${user.userMetadata?['full_name']}',
-    );
-    debugPrint(
-      'Provider: ${user.appMetadata['provider']}',
-    );
+    debugPrint('Name: ${user.userMetadata?['full_name']}');
+    debugPrint('Provider: ${user.appMetadata['provider']}');
     debugPrint('━━━━━━━━━━━━━━━━━━━━');
   }
 
@@ -157,6 +151,14 @@ class AuthProvider extends ChangeNotifier {
 
     if (msg.contains('invalid login credentials')) {
       return 'Incorrect email or password.';
+    }
+
+    if (msg.contains('for security purposes') ||
+        msg.contains('after') && msg.contains('seconds')) {
+      // Extract the seconds from the message if possible
+      final match = RegExp(r'(\d+) seconds').firstMatch(msg);
+      final seconds = match?.group(1) ?? '60';
+      return 'Please wait $seconds seconds before trying again.';
     }
 
     if (msg.contains('invalid otp')) {

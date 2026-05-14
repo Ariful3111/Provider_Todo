@@ -1,4 +1,6 @@
 // lib/core/routes/app_router.dart
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -12,59 +14,73 @@ import 'package:provider_todo/features/todo/presentation/pages/homepage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider_todo/core/routes/app_routes.dart';
 import 'package:provider_todo/features/auth/presentation/provider/auth_provider.dart';
-// ... other imports
+
+// ✅ Listens to Supabase auth stream directly — independent of any provider
+class _GoRouterRefreshNotifier extends ChangeNotifier {
+  late final StreamSubscription<AuthState> _sub;
+
+  _GoRouterRefreshNotifier() {
+    _sub = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+      debugPrint('🔄 GoRouter: auth changed — refreshing redirect');
+      notifyListeners();
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub.cancel();
+    super.dispose();
+  }
+}
 
 class AppRouter {
+  static final _refreshNotifier = _GoRouterRefreshNotifier();
+
   static final GoRouter router = GoRouter(
     initialLocation: AppRoutes.splash,
+    refreshListenable: _refreshNotifier, // ✅ fires on every auth event
 
     redirect: (BuildContext context, GoRouterState state) {
-      final session  = Supabase.instance.client.auth.currentSession;
+      final session = Supabase.instance.client.auth.currentSession;
       final isLoggedIn = session != null;
-      final loc      = state.matchedLocation;
+      final loc = state.matchedLocation;
 
-      // ✅ Safely read AuthProvider — may be null during startup
-      AuthProvider? authProvider;
+      // Read recovery flag safely
+      bool isPasswordRecovery = false;
       try {
-        authProvider = context.read<AuthProvider>();
+        isPasswordRecovery = context.read<AuthProvider>().isPasswordRecovery;
       } catch (_) {}
 
-      final isPasswordRecovery = authProvider?.isPasswordRecovery ?? false;
-
-      // ─── Password Recovery Flow ──────────────────────────
-      // ✅ User verified recovery OTP → must go to new password
-      if (isLoggedIn && isPasswordRecovery) {
-        if (loc != AppRoutes.newPassword) {
-          debugPrint('🔑 Router: recovery session → redirecting to newPassword');
-          return AppRoutes.newPassword;
-        }
-        return null; // already on new password page
+      // ── Recovery flow ────────────────────────────────────
+      if (isLoggedIn && isPasswordRecovery && loc != AppRoutes.newPassword) {
+        return AppRoutes.newPassword;
       }
 
-      // ─── Normal Auth Flow ────────────────────────────────
       final authRoutes = [
+        AppRoutes.splash,
         AppRoutes.signIn,
         AppRoutes.signUp,
         AppRoutes.forgotPassword,
         AppRoutes.otp,
-        AppRoutes.splash,
       ];
 
-      // Logged in on auth/splash page → go home
-      if (isLoggedIn && authRoutes.contains(loc)) {
-        debugPrint('🏠 Router: logged in on auth route → home');
-        return AppRoutes.home;
-      }
+      final isAuthRoute = authRoutes.contains(loc);
+      final isProtectedRoute = !isAuthRoute && loc != AppRoutes.newPassword;
 
-      // Not logged in trying to access home → go sign in
-      if (!isLoggedIn && loc == AppRoutes.home) {
-        debugPrint('🔒 Router: not logged in → signIn');
+      // ── Not logged in on protected route → signIn ────────
+      if (!isLoggedIn && isProtectedRoute) {
+        debugPrint('🔒 Not logged in at $loc → signIn');
         return AppRoutes.signIn;
       }
 
-      // ✅ newPassword is only accessible during recovery
+      // ── Logged in on auth/splash route → home ────────────
+      if (isLoggedIn && !isPasswordRecovery && isAuthRoute) {
+        debugPrint('🏠 Logged in on auth route → home');
+        return AppRoutes.home;
+      }
+
+      // ── newPassword only during recovery ─────────────────
       if (!isPasswordRecovery && loc == AppRoutes.newPassword) {
-        debugPrint('🔒 Router: no recovery session → signIn');
         return isLoggedIn ? AppRoutes.home : AppRoutes.signIn;
       }
 
@@ -91,8 +107,11 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.otp,
         builder: (context, state) {
-          final type = state.extra as OtpType? ?? OtpType.email;
-          return OtpPage(otpType: type);
+          // ✅ Correctly parse Map extra
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          final type = extra['type'] as OtpType? ?? OtpType.email;
+          final email = extra['email'] as String? ?? '';
+          return OtpPage(otpType: type, email: email);
         },
       ),
       GoRoute(

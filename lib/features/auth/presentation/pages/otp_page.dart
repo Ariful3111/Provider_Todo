@@ -5,7 +5,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:provider_todo/features/auth/presentation/provider/parts/otp_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider_todo/core/constant/app_colors.dart';
 import 'package:provider_todo/core/routes/app_routes.dart';
@@ -13,10 +12,17 @@ import 'package:provider_todo/core/shared/widgets/app_primary_button.dart';
 import 'package:provider_todo/core/shared/widgets/app_scaffold.dart';
 import 'package:provider_todo/core/shared/widgets/app_text.dart';
 import 'package:provider_todo/features/auth/presentation/provider/auth_provider.dart';
+import 'package:provider_todo/features/auth/presentation/provider/parts/otp_provider.dart';
 
 class OtpPage extends StatefulWidget {
   final OtpType otpType;
-  const OtpPage({super.key, required this.otpType});
+  final String  email;       // ✅ received from GoRouter extra
+
+  const OtpPage({
+    super.key,
+    required this.otpType,
+    required this.email,
+  });
 
   @override
   State<OtpPage> createState() => _OtpPageState();
@@ -25,9 +31,17 @@ class OtpPage extends StatefulWidget {
 class _OtpPageState extends State<OtpPage> {
   String _otpCode = '';
 
-  // ✅ true = signup email OTP, false = forgot password recovery OTP
-  bool get _isSignupOtp => widget.otpType == OtpType.email;
+  bool get _isSignupOtp   => widget.otpType == OtpType.email;
   bool get _isRecoveryOtp => widget.otpType == OtpType.recovery;
+
+  @override
+  void initState() {
+    super.initState();
+    // ✅ Set email on OtpProvider so verify calls use correct email
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<OtpProvider>().setEmail(widget.email);
+    });
+  }
 
   void _submit() async {
     if (_otpCode.length < 6) {
@@ -35,53 +49,53 @@ class _OtpPageState extends State<OtpPage> {
       return;
     }
 
-    final auth = context.read<OtpProvider>();
+    final otp = context.read<OtpProvider>();
 
     if (_isSignupOtp) {
-      // ✅ Email OTP for signup verification
-      await auth.verifyRecoveryOtp(_otpCode);
+      // ✅ Fixed: was calling verifyRecoveryOtp — now calls verifySignupOtp
+      final response = await otp.verifySignupOtp(_otpCode);
       if (!mounted) return;
-      if (auth.status == AuthStatus.success) {
+      if (response != null) {
         context.go(AppRoutes.home);
-      } else if (auth.status == AuthStatus.error) {
-        _showSnackbar(auth.errorMessage ?? 'Invalid OTP');
+      } else {
+        _showSnackbar(otp.errorMessage ?? 'Invalid OTP');
       }
+
     } else if (_isRecoveryOtp) {
-      // ✅ Recovery OTP for forgot password
-      await auth.verifyRecoveryOtp(_otpCode);
+      await otp.verifyRecoveryOtp(_otpCode);
       if (!mounted) return;
-      if (auth.status == AuthStatus.success) {
+      if (otp.status == AuthStatus.success) {
         context.go(AppRoutes.newPassword);
-      } else if (auth.status == AuthStatus.error) {
-        _showSnackbar(auth.errorMessage ?? 'Invalid OTP');
+      } else {
+        _showSnackbar(otp.errorMessage ?? 'Invalid OTP');
       }
     }
   }
 
   void _resend() async {
-    final auth = context.read<OtpProvider>();
+    final otp = context.read<OtpProvider>();
+
     if (_isSignupOtp) {
-      await auth.resendSignupOtp();
+      await otp.resendSignupOtp();
     } else {
-      await auth.resendSignupOtp();
+      // ✅ For recovery resend, re-send reset password email
+      await otp.sendRecoveryOtp(widget.email);
     }
+
     if (!mounted) return;
-    if (auth.status == AuthStatus.otpSent) {
-      _showSuccessSnackbar('OTP resent successfully');
-    } else if (auth.status == AuthStatus.error) {
-      _showSnackbar(auth.errorMessage ?? 'Failed to resend OTP');
+    if (otp.status == AuthStatus.success ||
+        otp.status == AuthStatus.otpSent) {
+      _showSuccessSnackbar('OTP resent to ${widget.email}');
+    } else {
+      _showSnackbar(otp.errorMessage ?? 'Failed to resend OTP');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    final auth = context.watch<AuthProvider>();
 
-    // ✅ Show email for all OTP types
-    final destination = auth.email;
-
-    TextStyle otpStyle =
+    final TextStyle otpStyle =
         (Theme.of(context).textTheme.headlineMedium ?? GoogleFonts.rubik())
             .copyWith(
               color: isDark ? AppColors.whiteColor : AppColors.primaryColor,
@@ -104,38 +118,35 @@ class _OtpPageState extends State<OtpPage> {
           children: [
             SizedBox(height: 20.h),
 
-            // ── Icon ──────────────────────────────────────
             Container(
-              width: 64,
-              height: 64,
+              width: 64, height: 64,
               decoration: BoxDecoration(
                 color: AppColors.primaryColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Icon(
-                Icons.mark_email_read_outlined, // ✅ always email icon
+              child: const Icon(
+                Icons.mark_email_read_outlined,
                 color: AppColors.primaryColor,
                 size: 32,
               ),
             ),
             SizedBox(height: 24.h),
 
-            // ── Title ─────────────────────────────────────
             AppText.heading('Verify your email'),
             SizedBox(height: 12.h),
 
-            // ── Subtitle ──────────────────────────────────
+            // ✅ Shows email from route — not from provider instance
             Wrap(
               children: [
                 AppText(
-                  'We sent a 6-digit verification code to ',
+                  'We sent a 6-digit code to ',
                   fontSize: 14,
                   color: isDark
                       ? AppColors.textSecondaryDark
                       : AppColors.textSecondary,
                 ),
                 AppText(
-                  destination,
+                  widget.email,    // ✅ from route extra, always correct
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: AppColors.primaryColor,
@@ -152,40 +163,33 @@ class _OtpPageState extends State<OtpPage> {
             ),
             SizedBox(height: 48.h),
 
-            // ── OTP Field — 6 digits ──────────────────────
             OtpTextField(
-              numberOfFields: 6, // ✅ matches Supabase setting
+              numberOfFields: 6,
               borderColor: isDark
-                  ? AppColors.whiteColor
-                  : AppColors.primaryColor,
+                  ? AppColors.whiteColor : AppColors.primaryColor,
               focusedBorderColor: isDark
-                  ? AppColors.whiteColor
-                  : AppColors.primaryColor,
+                  ? AppColors.whiteColor : AppColors.primaryColor,
               borderWidth: 2.r,
               contentPadding: EdgeInsets.all(2.r),
               keyboardType: const TextInputType.numberWithOptions(),
               styles: List.filled(6, otpStyle),
               cursorColor: isDark ? AppColors.whiteColor : null,
               onCodeChanged: (value) => _otpCode = value,
-              onSubmit: (value) {
-                _otpCode = value;
-                _submit();
-              },
+              onSubmit: (value) { _otpCode = value; _submit(); },
             ),
             SizedBox(height: 40.h),
 
-            // ── Verify Button ─────────────────────────────
-            Consumer<AuthProvider>(
-              builder: (context, auth, _) => AppPrimaryButton(
+            // ✅ Fixed: Consumer<OtpProvider> not Consumer<AuthProvider>
+            Consumer<OtpProvider>(
+              builder: (context, otp, _) => AppPrimaryButton(
                 label: 'Verify',
                 height: 48.h,
-                isLoading: auth.status == AuthStatus.loading,
-                onPressed: auth.status == AuthStatus.loading ? null : _submit,
+                isLoading: otp.isEmailLoading,
+                onPressed: otp.isEmailLoading ? null : _submit,
               ),
             ),
             SizedBox(height: 20.h),
 
-            // ── Resend ────────────────────────────────────
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -207,6 +211,7 @@ class _OtpPageState extends State<OtpPage> {
                 ),
               ],
             ),
+            SizedBox(height: 24.h),
           ],
         ),
       ),
@@ -216,32 +221,24 @@ class _OtpPageState extends State<OtpPage> {
   void _showSnackbar(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: AppText.whiteText(message),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
+      ..showSnackBar(SnackBar(
+        content: AppText.whiteText(message),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
   }
 
   void _showSuccessSnackbar(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: AppText.whiteText(message),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
+      ..showSnackBar(SnackBar(
+        content: AppText.whiteText(message),
+        backgroundColor: AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
   }
 }

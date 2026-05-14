@@ -40,42 +40,46 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _phoneValid = false;
 
   AuthStatus? _lastHandledStatus;
-  late final SignUpProvider _authProvider;
+  late final SignUpProvider _signUpProvider;
 
   @override
   void initState() {
     super.initState();
-    _authProvider = context.read<SignUpProvider>();
-    _authProvider.addListener(_onAuthChanged);
+    _signUpProvider = context.read<SignUpProvider>();
+    _signUpProvider.addListener(_onAuthChanged);
   }
 
+  // In SignUpPage._onAuthChanged()
   void _onAuthChanged() {
     if (!mounted) return;
-    final currentStatus = _authProvider.status;
-    if (currentStatus == _lastHandledStatus) return;
-    _lastHandledStatus = currentStatus;
+    final status = _signUpProvider.status;
+    if (status == _lastHandledStatus) return;
+    _lastHandledStatus = status;
 
-    if (currentStatus == AuthStatus.otpSent) {
-      final msg =
-          '🎉 OTP sent to ${_authProvider.email}. Check your inbox!';
-      debugPrint('✅ SNACKBAR: $msg');
-      _showSuccessSnackbar(msg);
-      Future.delayed(const Duration(milliseconds: 600), () {
+    if (status == AuthStatus.otpSent) {
+      // ✅ now fires correctly
+      debugPrint('✅ OTP sent → navigating to OTP page');
+      _showSuccessSnackbar('OTP Sent To your mail $_emailController.text');
+      Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted) {
-          // ✅ Pass OtpType.email — email OTP flow
-          context.push(AppRoutes.otp, extra: OtpType.email);
+          context.push(
+            AppRoutes.otp,
+            extra: {
+              'type': OtpType.email,
+              'email': _emailController.text.trim(),
+            },
+          );
         }
       });
-    } else if (currentStatus == AuthStatus.error) {
-      final msg = _authProvider.errorMessage ?? 'Sign up failed';
-      debugPrint('❌ SNACKBAR ERROR: $msg');
-      _showErrorSnackbar(msg);
+    } else if (status == AuthStatus.error) {
+      _showErrorSnackbar(_signUpProvider.errorMessage ?? 'Sign up failed');
+      _lastHandledStatus = null; // ✅ reset so next error shows too
     }
   }
 
   @override
   void dispose() {
-    _authProvider.removeListener(_onAuthChanged);
+    _signUpProvider.removeListener(_onAuthChanged);
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -95,7 +99,7 @@ class _SignUpPageState extends State<SignUpPage> {
       return;
     }
     _lastHandledStatus = null;
-    await _authProvider.signUp(
+    await _signUpProvider.signUp(
       email: _emailController.text.trim(),
       password: _passwordController.text,
       fullName: _nameController.text.trim(),
@@ -335,14 +339,32 @@ class _SignUpPageState extends State<SignUpPage> {
         Expanded(
           child: Wrap(
             children: [
-              AppText('I agree to the ', fontSize: 13,
-                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary),
-              const AppText('Terms of Service', fontSize: 13,
-                  fontWeight: FontWeight.w600, color: AppColors.primaryColor),
-              AppText(' and ', fontSize: 13,
-                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary),
-              const AppText('Privacy Policy', fontSize: 13,
-                  fontWeight: FontWeight.w600, color: AppColors.primaryColor),
+              AppText(
+                'I agree to the ',
+                fontSize: 13,
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondary,
+              ),
+              const AppText(
+                'Terms of Service',
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primaryColor,
+              ),
+              AppText(
+                ' and ',
+                fontSize: 13,
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondary,
+              ),
+              const AppText(
+                'Privacy Policy',
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primaryColor,
+              ),
             ],
           ),
         ),
@@ -354,12 +376,19 @@ class _SignUpPageState extends State<SignUpPage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        AppText('Already have an account? ', fontSize: 14,
-            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary),
+        AppText(
+          'Already have an account? ',
+          fontSize: 14,
+          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+        ),
         GestureDetector(
           onTap: () => context.pop(),
-          child: const AppText('Sign In', fontSize: 14,
-              fontWeight: FontWeight.w600, color: AppColors.primaryColor),
+          child: const AppText(
+            'Sign In',
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.primaryColor,
+          ),
         ),
       ],
     );
