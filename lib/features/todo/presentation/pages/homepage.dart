@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:provider_todo/core/constant/app_colors.dart';
-import 'package:provider_todo/core/shared/widgets/app_text.dart';
+import 'package:provider_todo/core/shared/widgets/app_snackbar.dart';
 import 'package:provider_todo/features/auth/presentation/provider/auth_provider.dart';
 import 'package:provider_todo/features/todo/presentation/pages/complete_todo.dart';
 import 'package:provider_todo/features/todo/presentation/pages/profile.dart';
@@ -55,11 +54,10 @@ class _HomepageState extends State<Homepage> {
 
     if (isOAuth) {
       _successShown = true;
-      _showWelcomeSnackbar(
-        user.userMetadata?['full_name'] ??
-            user.userMetadata?['name'] ??
-            user.email ??
-            'User',
+      AppSnackbar().successSnackbar(
+        context: context,
+        message:
+            'Welcome,  ${user.userMetadata?['full_name'] ?? user.userMetadata?['name'] ?? user.email ?? 'User'}🎉',
       );
     }
   }
@@ -67,57 +65,20 @@ class _HomepageState extends State<Homepage> {
   void _onAuthChanged() {
     if (!mounted) return;
     if (_authProvider.status == AuthStatus.error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: AppText.whiteText(
-            _authProvider.errorMessage ?? 'Something went wrong',
-          ),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
+      AppSnackbar().errorSnackBar(
+        message: _authProvider.errorMessage ?? 'Something went wrong',
+        context: context,
       );
     }
-  }
-
-  void _showWelcomeSnackbar(String name) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle_rounded, color: Colors.white),
-            const SizedBox(width: 10),
-            Expanded(child: AppText.whiteText('Welcome, $name! 🎉')),
-          ],
-        ),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
-        margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
   }
 
   void _onTodosChanged() {
     if (!mounted) return;
     if (_todosProvider.status == TodoStatus.error &&
         _todosProvider.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: AppText.whiteText(
-            _todosProvider.errorMessage ?? 'Todo operation failed',
-          ),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
+      AppSnackbar().errorSnackBar(
+        message: _todosProvider.errorMessage ?? 'Todo operation failed',
+        context: context,
       );
     }
   }

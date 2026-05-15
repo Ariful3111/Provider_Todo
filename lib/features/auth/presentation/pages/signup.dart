@@ -12,6 +12,7 @@ import 'package:provider_todo/core/shared/extentions/validators/name_validator.d
 import 'package:provider_todo/core/shared/extentions/validators/password_validator.dart';
 import 'package:provider_todo/core/shared/widgets/app_primary_button.dart';
 import 'package:provider_todo/core/shared/widgets/app_scaffold.dart';
+import 'package:provider_todo/core/shared/widgets/app_snackbar.dart';
 import 'package:provider_todo/core/shared/widgets/app_text.dart';
 import 'package:provider_todo/core/shared/widgets/app_text_field.dart';
 import 'package:provider_todo/features/auth/presentation/provider/auth_provider.dart';
@@ -59,7 +60,10 @@ class _SignUpPageState extends State<SignUpPage> {
     if (status == AuthStatus.otpSent) {
       // ✅ now fires correctly
       debugPrint('✅ OTP sent → navigating to OTP page');
-      _showSuccessSnackbar('OTP Sent To your mail $_emailController.text');
+      AppSnackbar().successSnackbar(
+        context: context,
+        message: 'OTP Sent To your mail $_emailController.text',
+      );
       Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted) {
           context.push(
@@ -72,7 +76,10 @@ class _SignUpPageState extends State<SignUpPage> {
         }
       });
     } else if (status == AuthStatus.error) {
-      _showErrorSnackbar(_signUpProvider.errorMessage ?? 'Sign up failed');
+      AppSnackbar().errorSnackBar(
+        message: _signUpProvider.errorMessage ?? 'Sign up failed',
+        context: context,
+      );
       _lastHandledStatus = null; // ✅ reset so next error shows too
     }
   }
@@ -91,11 +98,17 @@ class _SignUpPageState extends State<SignUpPage> {
   void _signUp() async {
     if (!_formKey.currentState!.validate()) return;
     if (_fullPhone.isEmpty || !_phoneValid) {
-      _showErrorSnackbar('Please enter a valid phone number');
+      AppSnackbar().errorSnackBar(
+        message: 'Please enter a valid phone number',
+        context: context,
+      );
       return;
     }
     if (!_agreedToTerms) {
-      _showErrorSnackbar('Please agree to the Terms & Privacy Policy');
+      AppSnackbar().successSnackbar(
+        context: context,
+        message: 'Please agree to the Terms & Privacy Policy',
+      );
       return;
     }
     _lastHandledStatus = null;
@@ -105,40 +118,6 @@ class _SignUpPageState extends State<SignUpPage> {
       fullName: _nameController.text.trim(),
       phone: _fullPhone,
     );
-  }
-
-  void _showErrorSnackbar(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: AppText.whiteText(message),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
-  }
-
-  void _showSuccessSnackbar(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: AppText.whiteText(message),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
   }
 
   @override

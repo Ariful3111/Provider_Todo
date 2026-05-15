@@ -160,7 +160,7 @@ class _SplashScreenState extends State<SplashScreen>
                         // Animated checkmark
                         AnimatedBuilder(
                           animation: _checkDraw,
-                          builder: (_, __) => CustomPaint(
+                          builder: (_, _) => CustomPaint(
                             size: const Size(46, 34),
                             painter: _CheckPainter(
                               progress: _checkDraw.value,
@@ -224,7 +224,7 @@ class _SplashScreenState extends State<SplashScreen>
                           child: Center(
                             child: AnimatedBuilder(
                               animation: _checkDraw,
-                              builder: (_, __) => CustomPaint(
+                              builder: (_, _) => CustomPaint(
                                 size: const Size(18, 13),
                                 painter: _CheckPainter(
                                   progress: _checkDraw.value,

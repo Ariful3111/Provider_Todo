@@ -8,6 +8,7 @@ import 'package:provider_todo/core/shared/extentions/validators/email_validator.
 import 'package:provider_todo/core/shared/extentions/validators/password_validator.dart';
 import 'package:provider_todo/core/shared/widgets/app_primary_button.dart';
 import 'package:provider_todo/core/shared/widgets/app_scaffold.dart';
+import 'package:provider_todo/core/shared/widgets/app_snackbar.dart';
 import 'package:provider_todo/core/shared/widgets/app_text.dart';
 import 'package:provider_todo/core/shared/widgets/app_text_field.dart';
 import 'package:provider_todo/core/shared/widgets/social_login_button.dart';
@@ -51,8 +52,9 @@ class _SignInPageState extends State<SignInPage> {
   void _onSignInChanged() {
     if (!mounted) return;
     if (_signInProvider.status == AuthStatus.error) {
-      _showErrorSnackbar(
-        _signInProvider.errorMessage ?? 'Sign in failed',
+      AppSnackbar().errorSnackBar(
+        context: context,
+        message: _signInProvider.errorMessage ?? 'Sign in failed',
       );
     }
   }
@@ -61,26 +63,11 @@ class _SignInPageState extends State<SignInPage> {
   void _onAuthChanged() {
     if (!mounted) return;
     if (_authProvider.status == AuthStatus.error) {
-      _showErrorSnackbar(
-        _authProvider.errorMessage ?? 'Sign in failed',
+      AppSnackbar().errorSnackBar(
+        context: context,
+        message: _authProvider.errorMessage ?? 'Sign in failed',
       );
     }
-  }
-
-  void _showErrorSnackbar(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: AppText.whiteText(message),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
   }
 
   @override
@@ -210,8 +197,8 @@ class _SignInPageState extends State<SignInPage> {
                 onPressed: isAnyLoading
                     ? null
                     : () => _oAuthProvider.signInWithProvider(
-                          OAuthProvider.google,
-                        ),
+                        OAuthProvider.google,
+                      ),
               ),
               const SizedBox(height: 12),
 
@@ -224,8 +211,8 @@ class _SignInPageState extends State<SignInPage> {
                 onPressed: isAnyLoading
                     ? null
                     : () => _oAuthProvider.signInWithProvider(
-                          OAuthProvider.facebook,
-                        ),
+                        OAuthProvider.facebook,
+                      ),
               ),
               const SizedBox(height: 12),
 
@@ -240,8 +227,8 @@ class _SignInPageState extends State<SignInPage> {
                 onPressed: isAnyLoading
                     ? null
                     : () => _oAuthProvider.signInWithProvider(
-                          OAuthProvider.github,
-                        ),
+                        OAuthProvider.github,
+                      ),
               ),
               const SizedBox(height: 36),
 
@@ -264,8 +251,7 @@ class _SignInPageState extends State<SignInPage> {
             color: AppColors.primaryColor,
             borderRadius: BorderRadius.circular(12),
           ),
-          child:
-              const Icon(Icons.check_rounded, color: Colors.white, size: 26),
+          child: const Icon(Icons.check_rounded, color: Colors.white, size: 26),
         ),
         const SizedBox(width: 10),
         AppText(
@@ -279,8 +265,7 @@ class _SignInPageState extends State<SignInPage> {
   }
 
   Widget _buildDivider(bool isDark) {
-    final dividerColor =
-        isDark ? AppColors.borderDark : AppColors.dividerColor;
+    final dividerColor = isDark ? AppColors.borderDark : AppColors.dividerColor;
     return Row(
       children: [
         Expanded(child: Divider(color: dividerColor)),
@@ -306,8 +291,7 @@ class _SignInPageState extends State<SignInPage> {
         AppText(
           "Don't have an account? ",
           fontSize: 14,
-          color:
-              isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
         ),
         GestureDetector(
           onTap: () => context.push(AppRoutes.signUp),

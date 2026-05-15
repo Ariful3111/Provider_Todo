@@ -9,6 +9,7 @@ import 'package:provider_todo/core/shared/extentions/validators/confirm_password
 import 'package:provider_todo/core/shared/extentions/validators/password_validator.dart';
 import 'package:provider_todo/core/shared/widgets/app_primary_button.dart';
 import 'package:provider_todo/core/shared/widgets/app_scaffold.dart';
+import 'package:provider_todo/core/shared/widgets/app_snackbar.dart';
 import 'package:provider_todo/core/shared/widgets/app_text.dart';
 import 'package:provider_todo/core/shared/widgets/app_text_field.dart';
 import 'package:provider_todo/features/auth/presentation/provider/auth_provider.dart';
@@ -52,31 +53,16 @@ class _NewPasswordViewState extends State<NewPasswordView> {
 
     if (auth.status == AuthStatus.success) {
       // ✅ Show success snackbar before navigating
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: AppText.whiteText('Password updated successfully!'),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
+      AppSnackbar().successSnackbar(
+        message: 'Password updated successfully!',
+        context: context,
       );
+
       context.go(AppRoutes.signIn);
     } else if (auth.status == AuthStatus.error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: AppText.whiteText(
-            auth.errorMessage ?? 'Failed to update password',
-          ),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
+      AppSnackbar().errorSnackBar(
+        message: auth.errorMessage ?? 'Failed to update password',
+        context: context,
       );
     }
   }
@@ -194,7 +180,8 @@ class _NewPasswordViewState extends State<NewPasswordView> {
 
               // ── Back to login ─────────────────────────────
               InkWell(
-                onTap: () =>  context.read<SignInProvider>().signOut(),
+                onTap: () =>
+                    context.read<SignInProvider>().signOut(context: context),
                 borderRadius: BorderRadius.circular(8),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(

@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:provider_todo/core/shared/widgets/app_snackbar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider_todo/core/constant/app_colors.dart';
 import 'package:provider_todo/core/routes/app_routes.dart';
@@ -16,13 +17,9 @@ import 'package:provider_todo/features/auth/presentation/provider/parts/otp_prov
 
 class OtpPage extends StatefulWidget {
   final OtpType otpType;
-  final String  email;       // ✅ received from GoRouter extra
+  final String email; // ✅ received from GoRouter extra
 
-  const OtpPage({
-    super.key,
-    required this.otpType,
-    required this.email,
-  });
+  const OtpPage({super.key, required this.otpType, required this.email});
 
   @override
   State<OtpPage> createState() => _OtpPageState();
@@ -31,7 +28,7 @@ class OtpPage extends StatefulWidget {
 class _OtpPageState extends State<OtpPage> {
   String _otpCode = '';
 
-  bool get _isSignupOtp   => widget.otpType == OtpType.email;
+  bool get _isSignupOtp => widget.otpType == OtpType.email;
   bool get _isRecoveryOtp => widget.otpType == OtpType.recovery;
 
   @override
@@ -45,7 +42,10 @@ class _OtpPageState extends State<OtpPage> {
 
   void _submit() async {
     if (_otpCode.length < 6) {
-      _showSnackbar('Please enter the complete 6-digit OTP');
+      AppSnackbar().errorSnackBar(
+        context: context,
+        message: 'Please enter the complete 6-digit OTP',
+      );
       return;
     }
 
@@ -58,16 +58,21 @@ class _OtpPageState extends State<OtpPage> {
       if (response != null) {
         context.go(AppRoutes.home);
       } else {
-        _showSnackbar(otp.errorMessage ?? 'Invalid OTP');
+        AppSnackbar().errorSnackBar(
+          context: context,
+          message: otp.errorMessage ?? 'Invalid OTP',
+        );
       }
-
     } else if (_isRecoveryOtp) {
       await otp.verifyRecoveryOtp(_otpCode);
       if (!mounted) return;
       if (otp.status == AuthStatus.success) {
         context.go(AppRoutes.newPassword);
       } else {
-        _showSnackbar(otp.errorMessage ?? 'Invalid OTP');
+        AppSnackbar().errorSnackBar(
+          context: context,
+          message: otp.errorMessage ?? 'Invalid OTP',
+        );
       }
     }
   }
@@ -83,11 +88,16 @@ class _OtpPageState extends State<OtpPage> {
     }
 
     if (!mounted) return;
-    if (otp.status == AuthStatus.success ||
-        otp.status == AuthStatus.otpSent) {
-      _showSuccessSnackbar('OTP resent to ${widget.email}');
+    if (otp.status == AuthStatus.success || otp.status == AuthStatus.otpSent) {
+      AppSnackbar().successSnackbar(
+        context: context,
+        message: 'OTP resent to ${widget.email}',
+      );
     } else {
-      _showSnackbar(otp.errorMessage ?? 'Failed to resend OTP');
+      AppSnackbar().errorSnackBar(
+        context: context,
+        message: otp.errorMessage ?? 'Failed to resend OTP',
+      );
     }
   }
 
@@ -119,7 +129,8 @@ class _OtpPageState extends State<OtpPage> {
             SizedBox(height: 20.h),
 
             Container(
-              width: 64, height: 64,
+              width: 64,
+              height: 64,
               decoration: BoxDecoration(
                 color: AppColors.primaryColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
@@ -146,7 +157,7 @@ class _OtpPageState extends State<OtpPage> {
                       : AppColors.textSecondary,
                 ),
                 AppText(
-                  widget.email,    // ✅ from route extra, always correct
+                  widget.email, // ✅ from route extra, always correct
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: AppColors.primaryColor,
@@ -166,16 +177,21 @@ class _OtpPageState extends State<OtpPage> {
             OtpTextField(
               numberOfFields: 6,
               borderColor: isDark
-                  ? AppColors.whiteColor : AppColors.primaryColor,
+                  ? AppColors.whiteColor
+                  : AppColors.primaryColor,
               focusedBorderColor: isDark
-                  ? AppColors.whiteColor : AppColors.primaryColor,
+                  ? AppColors.whiteColor
+                  : AppColors.primaryColor,
               borderWidth: 2.r,
               contentPadding: EdgeInsets.all(2.r),
               keyboardType: const TextInputType.numberWithOptions(),
               styles: List.filled(6, otpStyle),
               cursorColor: isDark ? AppColors.whiteColor : null,
               onCodeChanged: (value) => _otpCode = value,
-              onSubmit: (value) { _otpCode = value; _submit(); },
+              onSubmit: (value) {
+                _otpCode = value;
+                _submit();
+              },
             ),
             SizedBox(height: 40.h),
 
@@ -216,29 +232,5 @@ class _OtpPageState extends State<OtpPage> {
         ),
       ),
     );
-  }
-
-  void _showSnackbar(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: AppText.whiteText(message),
-        backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ));
-  }
-
-  void _showSuccessSnackbar(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: AppText.whiteText(message),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ));
   }
 }

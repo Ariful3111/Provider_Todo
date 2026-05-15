@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:provider_todo/core/shared/widgets/app_snackbar.dart';
 import 'package:provider_todo/features/auth/presentation/provider/parts/forgot_password_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider_todo/core/constant/app_colors.dart';
@@ -21,7 +22,7 @@ class ForgotPasswordPage extends StatefulWidget {
 }
 
 class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
-  final _formKey         = GlobalKey<FormState>();
+  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
 
   @override
@@ -44,8 +45,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     if (!exists) {
       // ✅ Email not found — show error
       debugPrint('❌ Forgot password: email not registered → $email');
-      _showErrorSnackbar(
-        'No account found with this email address.',
+      AppSnackbar().errorSnackBar(
+        context: context,
+        message: 'No account found with this email address.',
       );
       return;
     }
@@ -58,40 +60,20 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     if (auth.status == AuthStatus.otpSent) {
       debugPrint('✅ Forgot password OTP sent to: $email');
-      _showSuccessSnackbar('OTP sent to $email');
+      AppSnackbar().successSnackbar(
+        context: context,
+        message: 'OTP sent to $email',
+      );
       Future.delayed(const Duration(milliseconds: 600), () {
         if (mounted) context.push(AppRoutes.otp, extra: OtpType.recovery);
       });
     } else if (auth.status == AuthStatus.error) {
       debugPrint('❌ Forgot password OTP error: ${auth.errorMessage}');
-      _showErrorSnackbar(auth.errorMessage ?? 'Failed to send OTP');
+      AppSnackbar().errorSnackBar(
+        message: auth.errorMessage ?? 'Failed to send OTP',
+        context: context,
+      );
     }
-  }
-
-  void _showErrorSnackbar(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: AppText.whiteText(message),
-        backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 4),
-        margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ));
-  }
-
-  void _showSuccessSnackbar(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: AppText.whiteText(message),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
-        margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ));
   }
 
   @override
@@ -119,14 +101,16 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               const SizedBox(height: 20),
 
               Container(
-                width: 64, height: 64,
+                width: 64,
+                height: 64,
                 decoration: BoxDecoration(
                   color: AppColors.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Icon(
                   Icons.lock_reset_rounded,
-                  color: AppColors.primaryColor, size: 32,
+                  color: AppColors.primaryColor,
+                  size: 32,
                 ),
               ),
               const SizedBox(height: 24),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:provider/provider.dart';
+import 'package:provider_todo/core/shared/widgets/app_snackbar.dart';
 import 'package:provider_todo/features/todo/domain/entities/todo_entity.dart';
 import 'package:provider_todo/features/todo/presentation/provider/todos_provider.dart';
 
@@ -57,15 +58,9 @@ class _CompletedTodoItem extends StatelessWidget {
         dismissible: DismissiblePane(
           onDismissed: () {
             context.read<TodosProvider>().deleteTodo(todoEntity.id);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                behavior: SnackBarBehavior.floating,
-                margin: const EdgeInsets.all(16),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-                backgroundColor: Colors.black87,
-                content: Text('"${todoEntity.title}" removed'),
-              ),
+            AppSnackbar().errorSnackBar(
+              context: context,
+              message: '"${todoEntity.title}" removed',
             );
           },
         ),
@@ -77,8 +72,9 @@ class _CompletedTodoItem extends StatelessWidget {
             foregroundColor: Colors.white,
             icon: Icons.delete,
             label: 'Delete',
-            borderRadius:
-                const BorderRadius.horizontal(right: Radius.circular(12)),
+            borderRadius: const BorderRadius.horizontal(
+              right: Radius.circular(12),
+            ),
           ),
         ],
       ),
@@ -92,8 +88,9 @@ class _CompletedTodoItem extends StatelessWidget {
             foregroundColor: Colors.white,
             icon: Icons.undo,
             label: 'Undo',
-            borderRadius:
-                const BorderRadius.horizontal(left: Radius.circular(12)),
+            borderRadius: const BorderRadius.horizontal(
+              left: Radius.circular(12),
+            ),
           ),
         ],
       ),
@@ -116,7 +113,8 @@ class _CompletedTodoItem extends StatelessWidget {
               activeColor: Theme.of(context).primaryColor,
               checkColor: Colors.white,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4)),
+                borderRadius: BorderRadius.circular(4),
+              ),
               value: true,
               onChanged: (_) =>
                   context.read<TodosProvider>().toggleTodo(todoEntity.id),
@@ -140,15 +138,17 @@ class _CompletedTodoItem extends StatelessWidget {
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
                         todoEntity.description,
-                        style:
-                            TextStyle(fontSize: 14, color: Colors.grey[400]),
+                        style: TextStyle(fontSize: 14, color: Colors.grey[400]),
                       ),
                     ),
                 ],
               ),
             ),
-            Icon(Icons.check_circle_rounded,
-                color: Theme.of(context).primaryColor, size: 22),
+            Icon(
+              Icons.check_circle_rounded,
+              color: Theme.of(context).primaryColor,
+              size: 22,
+            ),
           ],
         ),
       ),

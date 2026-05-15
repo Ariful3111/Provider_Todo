@@ -16,8 +16,6 @@ class TodosProvider extends ChangeNotifier {
   final EditTodoUseCase editTodoUseCase;
   final DeleteTodoUseCase deleteTodoUseCase;
   final ToggleTodoUseCase toggleTodoUseCase;
-
-  // ✅ Direct reference to repository for remote operations
   final TodoRepositoryImpl repository;
 
   TodosProvider({
@@ -32,7 +30,11 @@ class TodosProvider extends ChangeNotifier {
   }
 
   TodoStatus _status = TodoStatus.initial;
-  List<TodoEntity> _todos = [];
+
+  // ✅ KEY FIX: explicitly typed growable List<TodoEntity>
+  // Use <TodoEntity>[] NOT just [] — prevents runtime type lock to List<TodoModel>
+  List<TodoEntity> _todos = <TodoEntity>[];
+
   String? _errorMessage;
 
   TodoStatus get status => _status;
@@ -42,17 +44,19 @@ class TodosProvider extends ChangeNotifier {
   List<TodoEntity> get completedTodos =>
       _todos.where((t) => t.isCompleted).toList();
 
-  // ─── Load — fetch from Supabase ──────────────────────────
+  // ✅ Always use this to assign — never assign toList() directly from remote
+  List<TodoEntity> _toEntityList(List<dynamic> source) =>
+      List<TodoEntity>.of(source.cast<TodoEntity>());
+
+  // ─── Load ─────────────────────────────────────────────────
   Future<void> loadTodos() async {
     _status = TodoStatus.loading;
     notifyListeners();
 
-    // ✅ Fetch from Supabase and sync to local cache
     final result = await repository.fetchAndSyncTodos();
     result.fold(
       (failure) {
-        debugPrint('❌ Load todos error: ${failure.message}');
-        // Fallback to local cache
+        debugPrint('❌ Load error: ${failure.message}');
         final localResult = getTodosUseCase();
         localResult.fold(
           (e) {
@@ -60,21 +64,21 @@ class TodosProvider extends ChangeNotifier {
             _errorMessage = failure.message;
           },
           (todos) {
-            _todos = todos.toList();
+            _todos = _toEntityList(todos);
             _status = TodoStatus.success;
           },
         );
       },
       (todos) {
-        _todos = todos.toList();
+        _todos = _toEntityList(todos);
         _status = TodoStatus.success;
-        debugPrint('✅ Loaded ${todos.length} todos from Supabase');
+        debugPrint('✅ Loaded ${_todos.length} todos');
       },
     );
     notifyListeners();
   }
 
-  // ─── Add — saves to Supabase ─────────────────────────────
+  // ─── Add ──────────────────────────────────────────────────
   Future<void> addTodo({
     required String title,
     required String description,
@@ -86,37 +90,31 @@ class TodosProvider extends ChangeNotifier {
       createdAt: DateTime.now(),
     );
 
-    // ✅ Optimistic update — add to UI immediately
-    _todos.add(todo);
+    _todos.add(todo); // ✅ works now — _todos is genuinely List<TodoEntity>
     notifyListeners();
 
-    // ✅ Save to Supabase
     final result = await repository.addTodoRemote(todo);
     result.fold(
       (failure) {
-        debugPrint('❌ Add todo error: ${failure.message}');
-        // Rollback if failed
+        debugPrint('❌ Add error: ${failure.message}');
         _todos.removeWhere((t) => t.id == todo.id);
         _errorMessage = failure.message;
-      //  notifyListeners();
-
-        // ✅ Auto-clear error after showing it
-        Future.delayed(const Duration(seconds: 1), () {
+        notifyListeners();
+        Future.delayed(const Duration(seconds: 2), () {
           _errorMessage = null;
           notifyListeners();
         });
       },
       (savedTodo) {
-        // Replace optimistic with saved version
         final index = _todos.indexWhere((t) => t.id == todo.id);
         if (index != -1) _todos[index] = savedTodo;
-        debugPrint('✅ Todo saved to Supabase: ${savedTodo.title}');
+        debugPrint('✅ Saved: ${savedTodo.title}');
+        notifyListeners();
       },
     );
-    notifyListeners();
   }
 
-  // ─── Edit — updates Supabase ─────────────────────────────
+  // ─── Edit ─────────────────────────────────────────────────
   Future<void> editTodo({
     required String id,
     required String title,
@@ -124,97 +122,89 @@ class TodosProvider extends ChangeNotifier {
   }) async {
     final index = _todos.indexWhere((t) => t.id == id);
     if (index == -1) return;
-
     final oldTodo = _todos[index];
-    final updated = oldTodo.copyWith(
+    _todos[index] = oldTodo.copyWith(
       title: title,
       description: description,
       createdAt: DateTime.now(),
     );
-
-    // Optimistic update
-    _todos[index] = updated;
     notifyListeners();
 
-    // Save to Supabase
-    final result = await repository.editTodoRemote(updated);
+    final result = await repository.editTodoRemote(_todos[index]);
     result.fold(
       (failure) {
-        debugPrint('❌ Edit todo error: ${failure.message}');
-        _todos[index] = oldTodo; // rollback
-        _errorMessage = failure.message;
+        debugPrint('❌ Edit error: ${failure.message}');
+        _todos[index] = oldTodo;
+        notifyListeners();
       },
       (editedTodo) {
         _todos[index] = editedTodo;
-        debugPrint('✅ Todo updated in Supabase: ${editedTodo.title}');
+        debugPrint('✅ Updated: ${editedTodo.title}');
+        notifyListeners();
       },
     );
-    notifyListeners();
   }
 
-  // ─── Delete — removes from Supabase ─────────────────────
+  // ─── Delete ───────────────────────────────────────────────
   Future<void> deleteTodo(String id) async {
     final index = _todos.indexWhere((t) => t.id == id);
     if (index == -1) return;
-
     final deletedTodo = _todos[index];
-
-    // Optimistic delete
     _todos.removeAt(index);
     notifyListeners();
 
-    // Delete from Supabase
     final result = await repository.deleteTodoRemote(id);
-    result.fold((failure) {
-      debugPrint('❌ Delete todo error: ${failure.message}');
-      _todos.insert(index, deletedTodo); // rollback
-      _errorMessage = failure.message;
-    }, (_) => debugPrint('✅ Todo deleted from Supabase: $id'));
-    notifyListeners();
+    result.fold(
+      (failure) {
+        debugPrint('❌ Delete error: ${failure.message}');
+        _todos.insert(index, deletedTodo);
+        notifyListeners();
+      },
+      (_) {
+        debugPrint('✅ Deleted: $id');
+        notifyListeners();
+      },
+    );
   }
 
-  // ─── Toggle — updates Supabase ───────────────────────────
+  // ─── Toggle ───────────────────────────────────────────────
   Future<void> toggleTodo(String id) async {
     final index = _todos.indexWhere((t) => t.id == id);
     if (index == -1) return;
-
     final oldTodo = _todos[index];
-    // Optimistic toggle
     _todos[index] = oldTodo.copyWith(isCompleted: !oldTodo.isCompleted);
     notifyListeners();
 
-    // Update in Supabase
     final result = await repository.toggleTodoRemote(id);
     result.fold(
       (failure) {
-        debugPrint('❌ Toggle todo error: ${failure.message}');
-        _todos[index] = oldTodo; // rollback
-        _errorMessage = failure.message;
+        debugPrint('❌ Toggle error: ${failure.message}');
+        _todos[index] = oldTodo;
+        notifyListeners();
       },
       (updatedTodo) {
         _todos[index] = updatedTodo;
-        debugPrint('✅ Todo toggled in Supabase: $id');
+        debugPrint('✅ Toggled: $id');
+        notifyListeners();
       },
     );
-    notifyListeners();
   }
 
-  // ─── Re-add for undo ─────────────────────────────────────
+  // ─── Re-add for undo ──────────────────────────────────────
   Future<void> reAddTodo(TodoEntity todo) async {
     _todos.add(todo);
     notifyListeners();
-
     final result = await repository.addTodoRemote(todo);
     result.fold(
       (failure) {
-        debugPrint('❌ Re-add todo error: ${failure.message}');
         _todos.removeWhere((t) => t.id == todo.id);
+        notifyListeners();
       },
       (savedTodo) {
         final index = _todos.indexWhere((t) => t.id == todo.id);
         if (index != -1) _todos[index] = savedTodo;
+        notifyListeners();
       },
     );
-    notifyListeners();
   }
 }
