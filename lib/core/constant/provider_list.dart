@@ -10,42 +10,31 @@ import 'package:provider_todo/features/auth/presentation/provider/parts/forgot_p
 import 'package:provider_todo/features/auth/presentation/provider/parts/otp_provider.dart';
 import 'package:provider_todo/features/auth/presentation/provider/parts/signin_provider.dart';
 import 'package:provider_todo/features/auth/presentation/provider/parts/signup_provider.dart';
+import 'package:provider_todo/features/profile/presentation/provider/edit_profile_provider.dart';
+import 'package:provider_todo/features/profile/presentation/provider/profile_provider.dart';
 import 'package:provider_todo/features/todo/presentation/provider/todos_provider.dart';
 
 class ProviderList {
   ProviderList._();
 
   static final List<SingleChildWidget> providers = [
-
     // ─── Theme ────────────────────────────────────────────
-    ChangeNotifierProvider<ThemeProvider>(
-      create: (_) => sl<ThemeProvider>(),
-    ),
+    ChangeNotifierProvider<ThemeProvider>(create: (_) => sl<ThemeProvider>()),
 
     // ─── Auth Base ────────────────────────────────────────
-    ChangeNotifierProvider<AuthProvider>(
-      create: (_) => sl<AuthProvider>(),
-    ),
+    ChangeNotifierProvider<AuthProvider>(create: (_) => sl<AuthProvider>()),
 
     // ─── Auth Listener (session watcher) ──────────────────
-    ChangeNotifierProvider<AuthListener>(
-      create: (_) => sl<AuthListener>(),
-    ),
+    ChangeNotifierProvider<AuthListener>(create: (_) => sl<AuthListener>()),
 
     // ─── Sign In / Sign Out ───────────────────────────────
-    ChangeNotifierProvider<SignInProvider>(
-      create: (_) => sl<SignInProvider>(),
-    ),
+    ChangeNotifierProvider<SignInProvider>(create: (_) => sl<SignInProvider>()),
 
     // ─── Sign Up ──────────────────────────────────────────
-    ChangeNotifierProvider<SignUpProvider>(
-      create: (_) => sl<SignUpProvider>(),
-    ),
+    ChangeNotifierProvider<SignUpProvider>(create: (_) => sl<SignUpProvider>()),
 
     // ─── OTP Verification ─────────────────────────────────
-    ChangeNotifierProvider<OtpProvider>(
-      create: (_) => sl<OtpProvider>(),
-    ),
+    ChangeNotifierProvider<OtpProvider>(create: (_) => sl<OtpProvider>()),
 
     // ─── OAuth (Google, GitHub, Facebook) ─────────────────
     ChangeNotifierProvider<OAuthSignInProvider>(
@@ -58,8 +47,13 @@ class ProviderList {
     ),
 
     // ─── Todo ─────────────────────────────────────────────
-    ChangeNotifierProvider<TodosProvider>(
-      create: (_) => sl<TodosProvider>(),
+    ChangeNotifierProvider<TodosProvider>(create: (_) => sl<TodosProvider>()),
+
+    ChangeNotifierProvider<ProfileProvider>(
+      create: (_) => sl<ProfileProvider>(),
+    ),
+    ChangeNotifierProvider<EditProfileProvider>(
+      create: (_) => sl<EditProfileProvider>(),
     ),
   ];
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:provider/provider.dart';
+import 'package:provider_todo/core/shared/widgets/app_scaffold.dart';
 import 'package:provider_todo/core/shared/widgets/app_snackbar.dart';
 import 'package:provider_todo/features/todo/domain/entities/todo_entity.dart';
 import 'package:provider_todo/features/todo/presentation/provider/todos_provider.dart';
@@ -29,18 +30,70 @@ class CompletedTodosPage extends StatelessWidget {
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      physics: const BouncingScrollPhysics(),
-      itemCount: completedTodos.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final todo = completedTodos[index];
-        return AnimatedSwitcher(
-          duration: const Duration(milliseconds: 350),
-          child: _CompletedTodoItem(key: ValueKey(todo.id), todoEntity: todo),
-        );
-      },
+    return AppScaffold(
+      appbar: AppBar(
+        title: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 250),
+          child: Text(
+            'Completed',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: Text(
+                  '${completedTodos.length} done',
+
+                  style: TextStyle(
+                    color: Theme.of(context).primaryColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      child: completedTodos.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.done_all_rounded,
+                    size: 64,
+                    color: Colors.grey[300],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No completed todos yet.\nCheck off some tasks!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey[400], fontSize: 16),
+                  ),
+                ],
+              ),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.all(16),
+              physics: const BouncingScrollPhysics(),
+              itemCount: completedTodos.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final todo = completedTodos[index];
+                return AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 350),
+                  child: _CompletedTodoItem(
+                    key: ValueKey(todo.id),
+                    todoEntity: todo,
+                  ),
+                );
+              },
+            ),
     );
   }
 }

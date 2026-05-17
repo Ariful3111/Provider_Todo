@@ -10,6 +10,7 @@ import 'package:provider_todo/features/auth/presentation/pages/otp_page.dart';
 import 'package:provider_todo/features/auth/presentation/pages/sign_in.dart';
 import 'package:provider_todo/features/auth/presentation/pages/signup.dart';
 import 'package:provider_todo/features/auth/presentation/pages/splash_screen.dart';
+import 'package:provider_todo/features/profile/presentation/pages/my_profilepage.dart';
 import 'package:provider_todo/features/todo/presentation/pages/homepage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider_todo/core/routes/app_routes.dart';
@@ -121,6 +122,10 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.home,
         builder: (context, state) => const Homepage(),
+      ),
+      GoRoute(
+        path: AppRoutes.myProfile,
+        builder: (context, state) => const MyProfilePage(),
       ),
     ],
   );

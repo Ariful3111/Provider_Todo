@@ -10,8 +10,18 @@ import 'package:provider_todo/features/auth/presentation/provider/parts/forgot_p
 import 'package:provider_todo/features/auth/presentation/provider/parts/otp_provider.dart';
 import 'package:provider_todo/features/auth/presentation/provider/parts/signin_provider.dart';
 import 'package:provider_todo/features/auth/presentation/provider/parts/signup_provider.dart';
+import 'package:provider_todo/features/profile/data/data_sources/user_remote_data_source.dart';
+import 'package:provider_todo/features/profile/data/repositories/user_repositoey_impl.dart';
+import 'package:provider_todo/features/profile/domain/repositories/user_repository.dart';
+import 'package:provider_todo/features/profile/domain/usecases/get_user_stats_usecase.dart';
+import 'package:provider_todo/features/profile/domain/usecases/get_user_usecase.dart';
+import 'package:provider_todo/features/profile/domain/usecases/update_user_name_usecase.dart';
+import 'package:provider_todo/features/profile/domain/usecases/update_password_usecase.dart';
+import 'package:provider_todo/features/profile/domain/usecases/upload_avater_usecase.dart';
+import 'package:provider_todo/features/profile/presentation/provider/profile_provider.dart';
 import 'package:provider_todo/features/todo/data/datasources/todo_local_datasources.dart';
 import 'package:provider_todo/features/todo/data/datasources/todo_remote_datasources.dart';
+import 'package:provider_todo/features/todo/data/model/todo_model.dart';
 import 'package:provider_todo/features/todo/data/repositories/todo_repository_impl.dart';
 import 'package:provider_todo/features/todo/domain/repositories/todo_repositories.dart';
 import 'package:provider_todo/features/todo/domain/usecases/add_todos_usecase.dart';
@@ -21,18 +31,16 @@ import 'package:provider_todo/features/todo/domain/usecases/get_todos_usecase.da
 import 'package:provider_todo/features/todo/domain/usecases/toggle_todos_usecase.dart';
 import 'package:provider_todo/features/todo/presentation/provider/todos_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:provider_todo/features/todo/data/model/todo_model.dart';
 
 final sl = GetIt.instance;
 
-// ✅ async — called with await in main.dart
 Future<void> initDependencies() async {
   await _initHive();
-  await _initSupabase();      // ← Supabase init lives HERE only
-  _registerDataSources();
-  _registerRepositories();
-  _registerUseCases();
-  _registerProviders();           // ← separated for clarity
+  await _initSupabase();
+  _registerDataSources();   // datasources only
+  _registerRepositories();  // repositories only
+  _registerUseCases();      // use cases only
+  _registerProviders();     // providers only
 }
 
 // ─── Hive ─────────────────────────────────────────────────────
@@ -49,91 +57,86 @@ Future<void> _initSupabase() async {
     url: StaticDatas.superbaseProjectUrl,
     anonKey: StaticDatas.superbaseAnnonKey,
   );
-  sl.registerLazySingleton<SupabaseClient>(
-    () => Supabase.instance.client,
-  );
+  sl.registerLazySingleton<SupabaseClient>(() => Supabase.instance.client);
 }
 
 // ─── Data Sources ─────────────────────────────────────────────
 void _registerDataSources() {
+  // Todo
   sl.registerLazySingleton<TodoLocalDataSource>(
     () => TodoLocalDataSourceImpl(sl()),
   );
   sl.registerLazySingleton<TodoRemoteDataSource>(
     () => TodoRemoteDataSourceImpl(sl()),
   );
+  // Profile
+  sl.registerLazySingleton<UserRemoteDataSource>(
+    () => UserRemoteDataSourceImpl(sl<SupabaseClient>()),
+  );
 }
 
-// ─── Repository ───────────────────────────────────────────────
+// ─── Repositories ─────────────────────────────────────────────
 void _registerRepositories() {
+  // Todo
   sl.registerLazySingleton<TodoRepository>(
     () => TodoRepositoryImpl(
-      localDataSource: sl(),
+      localDataSource:  sl(),
       remoteDataSource: sl(),
     ),
+  );
+  // Profile
+  sl.registerLazySingleton<UserRepository>(
+    () => UserRepositoryImpl(remoteDataSource: sl()),
   );
 }
 
 // ─── Use Cases ────────────────────────────────────────────────
 void _registerUseCases() {
+  // Todo
   sl.registerLazySingleton(() => GetTodosUseCase(sl()));
   sl.registerLazySingleton(() => AddTodoUseCase(sl()));
   sl.registerLazySingleton(() => EditTodoUseCase(sl()));
   sl.registerLazySingleton(() => DeleteTodoUseCase(sl()));
   sl.registerLazySingleton(() => ToggleTodoUseCase(sl()));
+
+  // Profile — all 5 registered HERE only, nowhere else
+  sl.registerLazySingleton(() => GetUserUseCase(sl()));
+  sl.registerLazySingleton(() => GetUserStatsUseCase(sl()));
+  sl.registerLazySingleton(() => UploadAvatarUseCase(sl()));
+  sl.registerLazySingleton(() => UpdateUserNameUseCase(sl()));
+  sl.registerLazySingleton(() => UpdatePasswordUseCase(sl()));
 }
 
-// ─── Todo Provider ────────────────────────────────────────────
-// lib/core/di/injection_container.dart
-// ─── Only change needed — update _registerProviders() ─────
-
+// ─── Providers ────────────────────────────────────────────────
 void _registerProviders() {
-
-  // ─── Theme ────────────────────────────────────────────────
-  // ✅ Singleton — theme must be same everywhere in app
+  // Theme
   sl.registerLazySingleton(() => ThemeProvider());
 
-  // ─── Auth — Base ──────────────────────────────────────────
-  // ✅ Singleton — shared state (isPasswordRecovery etc.)
+  // Auth
   sl.registerLazySingleton(() => AuthProvider(sl<SupabaseClient>()));
-
-  // ─── Auth Listener ────────────────────────────────────────
-  // ✅ Singleton — must only have ONE auth stream listener
-  // registerFactory would create multiple stream subscriptions ❌
   sl.registerLazySingleton(() => AuthListener(sl<SupabaseClient>()));
-
-  // ─── Sign In ──────────────────────────────────────────────
-  // ✅ Singleton — login state must persist across pages
   sl.registerLazySingleton(() => SignInProvider(sl<SupabaseClient>()));
-
-  // ─── Sign Up ──────────────────────────────────────────────
-  // ✅ Singleton — stores _pendingFullName, _pendingPhone
-  // registerFactory loses pending data between pages ❌
   sl.registerLazySingleton(() => SignUpProvider(sl<SupabaseClient>()));
-
-  // ─── OTP ──────────────────────────────────────────────────
-  // ✅ Singleton — needs to hold email set from signup/forgot page
-  // registerFactory means email is always empty when OTP page reads it ❌
   sl.registerLazySingleton(() => OtpProvider(sl<SupabaseClient>()));
+  sl.registerLazySingleton(() => OAuthSignInProvider(sl<SupabaseClient>()));
+  sl.registerLazySingleton(() => ForgotPasswordProvider(sl<SupabaseClient>()));
 
-  // ─── OAuth ────────────────────────────────────────────────
-  // ✅ Singleton — loading state must reflect correctly in UI
-  sl.registerLazySingleton(
-      () => OAuthSignInProvider(sl<SupabaseClient>()));
-
-  // ─── Forgot Password ──────────────────────────────────────
-  // ✅ Singleton — stores email across forgot → otp → new password flow
-  sl.registerLazySingleton(
-      () => ForgotPasswordProvider(sl<SupabaseClient>()));
-
-  // ─── Todo ─────────────────────────────────────────────────
-  // ✅ Singleton — todo list state must be same across all screens
+  // Todo
   sl.registerLazySingleton(() => TodosProvider(
-    getTodosUseCase: sl(),
-    addTodoUseCase: sl(),
-    editTodoUseCase: sl(),
+    getTodosUseCase:   sl(),
+    addTodoUseCase:    sl(),
+    editTodoUseCase:   sl(),
     deleteTodoUseCase: sl(),
     toggleTodoUseCase: sl(),
     repository: sl<TodoRepository>() as TodoRepositoryImpl,
+  ));
+
+  // Profile — only providers here, NO datasources/repos/usecases
+  sl.registerLazySingleton(() => ProfileProvider(
+    getUserUseCase:        sl(),
+    getUserStatsUseCase:   sl(),
+    uploadAvatarUseCase:   sl(),
+    updateUserNameUseCase: sl(),
+    updatePasswordUseCase: sl(),
   ));
 }

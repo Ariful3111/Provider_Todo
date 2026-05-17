@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:provider_todo/core/shared/widgets/app_scaffold.dart';
 import 'package:provider_todo/core/shared/widgets/app_snackbar.dart';
 import 'package:provider_todo/features/auth/presentation/provider/auth_provider.dart';
+import 'package:provider_todo/features/profile/presentation/pages/profile_page.dart';
 import 'package:provider_todo/features/todo/presentation/pages/complete_todo.dart';
-import 'package:provider_todo/features/todo/presentation/pages/profile.dart';
 import 'package:provider_todo/features/todo/presentation/provider/todos_provider.dart';
 import 'package:provider_todo/features/todo/presentation/widgets/add_todo_dialog.dart';
 import 'package:provider_todo/features/todo/presentation/widgets/todo_list.dart';
@@ -103,44 +104,8 @@ class _HomepageState extends State<Homepage> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<TodosProvider>();
-    return Scaffold(
-      appBar: AppBar(
-        title: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 250),
-          child: Text(
-            _currentIndex == 0 ? 'My Todos' : 'Completed',
-            key: ValueKey(_currentIndex),
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 250),
-                child: Text(
-                  _currentIndex == 0
-                      ? '${provider.todos.length} remaining'
-                      : '${provider.completedTodos.length} done',
-                  key: ValueKey(_currentIndex),
-                  style: TextStyle(
-                    color: Theme.of(context).primaryColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: PageView(
-        controller: _pageController,
-        onPageChanged: (index) => setState(() => _currentIndex = index),
-        children: const [TodoList(), CompletedTodosPage(), Profile()],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
+    return AppScaffold(
+      bottomNav: BottomNavigationBar(
         backgroundColor: Theme.of(context).primaryColor,
         unselectedItemColor: Colors.white.withValues(alpha: 0.6),
         selectedItemColor: Colors.white,
@@ -191,6 +156,11 @@ class _HomepageState extends State<Homepage> {
             child: const Icon(Icons.add, color: Colors.white),
           ),
         ),
+      ),
+      child: PageView(
+        controller: _pageController,
+        onPageChanged: (index) => setState(() => _currentIndex = index),
+        children: const [TodoList(), CompletedTodosPage(), ProfilePage()],
       ),
     );
   }
