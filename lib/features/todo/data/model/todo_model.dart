@@ -6,83 +6,76 @@ part 'todo_model.g.dart';
 
 @HiveType(typeId: 0)
 class TodoModel extends TodoEntity {
-  @HiveField(0)
-  final String hiveId;
-
-  @HiveField(1)
-  final String hiveTitle;
-
-  @HiveField(2)
-  final String hiveDescription;
-
-  @HiveField(3)
-  final DateTime hiveCreatedAt;
-
-  @HiveField(4)
-  final bool hiveIsCompleted;
+  @HiveField(0) final String    hiveId;
+  @HiveField(1) final String    hiveTitle;
+  @HiveField(2) final String    hiveDescription;
+  @HiveField(3) final DateTime  hiveCreatedAt;
+  @HiveField(4) final bool      hiveIsCompleted;
+  @HiveField(5) final DateTime? hiveCompletedAt;  // ✅ NEW field
 
   const TodoModel({
     required super.id,
     required super.title,
     required super.description,
     required super.createdAt,
-    super.isCompleted = false,
-  })  : hiveId = id,
-        hiveTitle = title,
+    super.isCompleted  = false,
+    super.completedAt,
+  })  : hiveId          = id,
+        hiveTitle       = title,
         hiveDescription = description,
-        hiveCreatedAt = createdAt,
-        hiveIsCompleted = isCompleted;
+        hiveCreatedAt   = createdAt,
+        hiveIsCompleted = isCompleted,
+        hiveCompletedAt = completedAt;
 
-  // ✅ Convert from Supabase JSON response
   factory TodoModel.fromJson(Map<String, dynamic> json) {
     return TodoModel(
-      id: json['id'] as String,
-      title: json['title'] as String? ?? '',
+      id:          json['id']          as String,
+      title:       json['title']       as String? ?? '',
       description: json['description'] as String? ?? '',
+      isCompleted: json['is_completed'] as bool?  ?? false,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
           : DateTime.now(),
-      isCompleted: json['is_completed'] as bool? ?? false,
+      completedAt: json['completed_at'] != null
+          ? DateTime.parse(json['completed_at'] as String)
+          : null,
     );
   }
 
-  // ✅ Convert to JSON for Supabase insert/update
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'description': description,
-      'is_completed': isCompleted,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': DateTime.now().toIso8601String(),
-    };
-  }
+  Map<String, dynamic> toJson() => {
+    'id':           id,
+    'title':        title,
+    'description':  description,
+    'is_completed': isCompleted,
+    'created_at':   createdAt.toIso8601String(),
+    'updated_at':   DateTime.now().toIso8601String(),
+    'completed_at': completedAt?.toIso8601String(),
+  };
 
-  // Convert from domain entity → model
-  factory TodoModel.fromEntity(TodoEntity entity) {
-    return TodoModel(
-      id: entity.id,
-      title: entity.title,
-      description: entity.description,
-      createdAt: entity.createdAt,
-      isCompleted: entity.isCompleted,
-    );
-  }
+  factory TodoModel.fromEntity(TodoEntity e) => TodoModel(
+    id:          e.id,
+    title:       e.title,
+    description: e.description,
+    createdAt:   e.createdAt,
+    isCompleted: e.isCompleted,
+    completedAt: e.completedAt,
+  );
 
   @override
   TodoModel copyWith({
-    String? id,
-    String? title,
-    String? description,
+    String?   id,
+    String?   title,
+    String?   description,
     DateTime? createdAt,
-    bool? isCompleted,
-  }) {
-    return TodoModel(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      description: description ?? this.description,
-      createdAt: createdAt ?? this.createdAt,
-      isCompleted: isCompleted ?? this.isCompleted,
-    );
-  }
+    bool?     isCompleted,
+    DateTime? completedAt,
+    bool      clearCompletedAt = false,
+  }) => TodoModel(
+    id:          id          ?? this.id,
+    title:       title       ?? this.title,
+    description: description ?? this.description,
+    createdAt:   createdAt   ?? this.createdAt,
+    isCompleted: isCompleted ?? this.isCompleted,
+    completedAt: clearCompletedAt ? null : (completedAt ?? this.completedAt),
+  );
 }

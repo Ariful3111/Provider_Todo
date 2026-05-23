@@ -1,8 +1,10 @@
+// lib/features/todo/presentation/pages/complete_todo.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:provider/provider.dart';
-import 'package:provider_todo/core/shared/widgets/app_scaffold.dart';
-import 'package:provider_todo/core/shared/widgets/app_snackbar.dart';
+import 'package:intl/intl.dart';
+import 'package:provider_todo/core/constant/app_colors.dart';
 import 'package:provider_todo/features/todo/domain/entities/todo_entity.dart';
 import 'package:provider_todo/features/todo/presentation/provider/todos_provider.dart';
 
@@ -14,119 +16,51 @@ class CompletedTodosPage extends StatelessWidget {
     final completedTodos = context.watch<TodosProvider>().completedTodos;
 
     if (completedTodos.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.done_all_rounded, size: 64, color: Colors.grey[300]),
-            const SizedBox(height: 12),
-            Text(
-              'No completed todos yet.\nCheck off some tasks!',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[400], fontSize: 16),
-            ),
-          ],
-        ),
-      );
+      return const _EmptyCompleted();
     }
 
-    return AppScaffold(
-      appbar: AppBar(
-        title: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 250),
-          child: Text(
-            'Completed',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 250),
-                child: Text(
-                  '${completedTodos.length} done',
-
-                  style: TextStyle(
-                    color: Theme.of(context).primaryColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+    return ListView.separated(
+      padding: EdgeInsets.only(top: 8.h, bottom: 100.h),
+      physics: const BouncingScrollPhysics(),
+      itemCount: completedTodos.length,
+      separatorBuilder: (_, __) => Divider(
+        height: 1,
+        color: const Color(0xFFEEF0F4),
+        indent: 20.w,
+        endIndent: 20.w,
       ),
-      child: completedTodos.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.done_all_rounded,
-                    size: 64,
-                    color: Colors.grey[300],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'No completed todos yet.\nCheck off some tasks!',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey[400], fontSize: 16),
-                  ),
-                ],
-              ),
-            )
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              physics: const BouncingScrollPhysics(),
-              itemCount: completedTodos.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
-              itemBuilder: (context, index) {
-                final todo = completedTodos[index];
-                return AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 350),
-                  child: _CompletedTodoItem(
-                    key: ValueKey(todo.id),
-                    todoEntity: todo,
-                  ),
-                );
-              },
-            ),
+      itemBuilder: (context, index) {
+        final todo = completedTodos[index];
+        return _CompletedItem(key: ValueKey(todo.id), todo: todo);
+      },
     );
   }
 }
 
-class _CompletedTodoItem extends StatelessWidget {
-  final TodoEntity todoEntity;
-  const _CompletedTodoItem({super.key, required this.todoEntity});
+// ── Completed item — matches Image 3 exactly ──────────────────
+class _CompletedItem extends StatelessWidget {
+  final TodoEntity todo;
+  const _CompletedItem({super.key, required this.todo});
 
   @override
   Widget build(BuildContext context) {
     return Slidable(
-      key: ValueKey(todoEntity.id),
+      key: ValueKey(todo.id),
       endActionPane: ActionPane(
         motion: const BehindMotion(),
         dismissible: DismissiblePane(
-          onDismissed: () {
-            context.read<TodosProvider>().deleteTodo(todoEntity.id);
-            AppSnackbar().errorSnackBar(
-              context: context,
-              message: '"${todoEntity.title}" removed',
-            );
-          },
+          onDismissed: () => _delete(context),
         ),
         children: [
           SlidableAction(
-            onPressed: (_) =>
-                context.read<TodosProvider>().deleteTodo(todoEntity.id),
-            backgroundColor: Colors.red,
+            onPressed: (_) => _delete(context),
+            backgroundColor: AppColors.error,
             foregroundColor: Colors.white,
-            icon: Icons.delete,
+            icon: Icons.delete_outline_rounded,
             label: 'Delete',
-            borderRadius: const BorderRadius.horizontal(
-              right: Radius.circular(12),
+            borderRadius: BorderRadius.only(
+              topRight: Radius.circular(12.r),
+              bottomRight: Radius.circular(12.r),
             ),
           ),
         ],
@@ -135,75 +69,151 @@ class _CompletedTodoItem extends StatelessWidget {
         motion: const BehindMotion(),
         children: [
           SlidableAction(
-            onPressed: (_) =>
-                context.read<TodosProvider>().toggleTodo(todoEntity.id),
-            backgroundColor: Colors.orange,
+            onPressed: (_) => _undo(context),
+            backgroundColor: const Color(0xFFF59E0B),
             foregroundColor: Colors.white,
-            icon: Icons.undo,
+            icon: Icons.undo_rounded,
             label: 'Undo',
-            borderRadius: const BorderRadius.horizontal(
-              left: Radius.circular(12),
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(12.r),
+              bottomLeft: Radius.circular(12.r),
             ),
           ),
         ],
       ),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
+      child: GestureDetector(
+        onTap: () => _undo(context),
+        child: Container(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Checkbox(
-              activeColor: Theme.of(context).primaryColor,
-              checkColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(4),
+          padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+          child: Row(
+            children: [
+              // ── Blue filled checkbox with checkmark ──────
+              Container(
+                width: 36.r,
+                height: 36.r,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor,
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: Icon(
+                  Icons.check_rounded,
+                  color: Colors.white,
+                  size: 20.sp,
+                ),
               ),
-              value: true,
-              onChanged: (_) =>
-                  context.read<TodosProvider>().toggleTodo(todoEntity.id),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    todoEntity.title,
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey,
-                      decoration: TextDecoration.lineThrough,
-                    ),
-                  ),
-                  if (todoEntity.description.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        todoEntity.description,
-                        style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+              SizedBox(width: 16.w),
+
+              // ── Title + completedAt ───────────────────────
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Strikethrough title in blue
+                    Text(
+                      todo.title,
+                      style: TextStyle(
+                        fontSize: 15.sp,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.primaryColor,
+                        decoration: TextDecoration.lineThrough,
+                        decorationColor: AppColors.primaryColor,
+                        decorationThickness: 1.5,
                       ),
                     ),
-                ],
+                    SizedBox(height: 4.h),
+                    // Completed at timestamp
+                    Text(
+                      _formatCompleted(todo.completedAt),
+                      style: TextStyle(
+                        fontSize: 13.sp,
+                        color: const Color(0xFF9CA3AF),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Icon(
-              Icons.check_circle_rounded,
-              color: Theme.of(context).primaryColor,
-              size: 22,
-            ),
-          ],
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  String _formatCompleted(DateTime? dt) {
+    if (dt == null) return 'Completed';
+    return 'Completed at ${DateFormat('dd/MM/yyyy HH:mm').format(dt)}';
+  }
+
+  void _undo(BuildContext context) {
+    context.read<TodosProvider>().toggleTodo(todo.id);
+  }
+
+  void _delete(BuildContext context) {
+    final provider = context.read<TodosProvider>();
+    final snapshot = todo;
+    provider.deleteTodo(todo.id);
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        backgroundColor: Colors.black87,
+        duration: const Duration(seconds: 3),
+        content: Text('"${snapshot.title}" deleted'),
+        action: SnackBarAction(
+          label: 'Undo',
+          textColor: Colors.blue[200],
+          onPressed: () => provider.reAddTodo(snapshot),
+        ),
+      ));
+  }
+}
+
+// ── Empty state for completed ──────────────────────────────────
+class _EmptyCompleted extends StatelessWidget {
+  const _EmptyCompleted();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 72.r,
+            height: 72.r,
+            decoration: BoxDecoration(
+              color: const Color(0xFFDEEAFF),
+              borderRadius: BorderRadius.circular(20.r),
+            ),
+            child: Icon(
+              Icons.done_all_rounded,
+              size: 36.sp,
+              color: const Color(0xFF93B4D4),
+            ),
+          ),
+          SizedBox(height: 16.h),
+          Text(
+            'No completed tasks',
+            style: TextStyle(
+              fontSize: 16.sp,
+              fontWeight: FontWeight.w500,
+              color: const Color(0xFF93B4D4),
+            ),
+          ),
+          SizedBox(height: 6.h),
+          Text(
+            'Complete some tasks to see them here',
+            style: TextStyle(
+              fontSize: 13.sp,
+              color: const Color(0xFFB3C9E0),
+            ),
+          ),
+        ],
       ),
     );
   }

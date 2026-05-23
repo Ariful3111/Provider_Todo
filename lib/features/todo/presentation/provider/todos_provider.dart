@@ -11,11 +11,11 @@ import 'package:provider_todo/features/todo/domain/usecases/toggle_todos_usecase
 enum TodoStatus { initial, loading, success, error }
 
 class TodosProvider extends ChangeNotifier {
-  final GetTodosUseCase getTodosUseCase;
-  final AddTodoUseCase addTodoUseCase;
-  final EditTodoUseCase editTodoUseCase;
-  final DeleteTodoUseCase deleteTodoUseCase;
-  final ToggleTodoUseCase toggleTodoUseCase;
+  final GetTodosUseCase    getTodosUseCase;
+  final AddTodoUseCase     addTodoUseCase;
+  final EditTodoUseCase    editTodoUseCase;
+  final DeleteTodoUseCase  deleteTodoUseCase;
+  final ToggleTodoUseCase  toggleTodoUseCase;
   final TodoRepositoryImpl repository;
 
   TodosProvider({
@@ -25,30 +25,53 @@ class TodosProvider extends ChangeNotifier {
     required this.deleteTodoUseCase,
     required this.toggleTodoUseCase,
     required this.repository,
-  }) {
-    loadTodos();
+  });
+
+  TodoStatus      _status       = TodoStatus.initial;
+  List<TodoEntity> _todos       = <TodoEntity>[];
+  String?         _errorMessage;
+  DateTime        _selectedDate = _today();
+
+  static DateTime _today() {
+    final n = DateTime.now();
+    return DateTime(n.year, n.month, n.day);
   }
 
-  TodoStatus _status = TodoStatus.initial;
+  TodoStatus get status        => _status;
+  String?    get errorMessage  => _errorMessage;
+  DateTime   get selectedDate  => _selectedDate;
 
-  // ✅ KEY FIX: explicitly typed growable List<TodoEntity>
-  // Use <TodoEntity>[] NOT just [] — prevents runtime type lock to List<TodoModel>
-  List<TodoEntity> _todos = <TodoEntity>[];
+  // ── Date filtering helpers ────────────────────────────────
+  bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 
-  String? _errorMessage;
+  // Active todos for selected date (by createdAt)
+  List<TodoEntity> get todos => _todos
+      .where((t) => !t.isCompleted && _sameDay(t.createdAt, _selectedDate))
+      .toList();
 
-  TodoStatus get status => _status;
-  String? get errorMessage => _errorMessage;
+  // Completed todos for selected date (by completedAt)
+  List<TodoEntity> get completedTodos => _todos
+      .where((t) =>
+          t.isCompleted &&
+          t.completedAt != null &&
+          _sameDay(t.completedAt!, _selectedDate))
+      .toList();
 
-  List<TodoEntity> get todos => _todos.where((t) => !t.isCompleted).toList();
-  List<TodoEntity> get completedTodos =>
+  // All active (for badge counts)
+  List<TodoEntity> get allActiveTodos =>
+      _todos.where((t) => !t.isCompleted).toList();
+
+  List<TodoEntity> get allCompletedTodos =>
       _todos.where((t) => t.isCompleted).toList();
 
-  // ✅ Always use this to assign — never assign toList() directly from remote
-  List<TodoEntity> _toEntityList(List<dynamic> source) =>
-      List<TodoEntity>.of(source.cast<TodoEntity>());
+  // ── Select date ───────────────────────────────────────────
+  void selectDate(DateTime date) {
+    _selectedDate = DateTime(date.year, date.month, date.day);
+    notifyListeners();
+  }
 
-  // ─── Load ─────────────────────────────────────────────────
+  // ── Load ──────────────────────────────────────────────────
   Future<void> loadTodos() async {
     _status = TodoStatus.loading;
     notifyListeners();
@@ -59,18 +82,12 @@ class TodosProvider extends ChangeNotifier {
         debugPrint('❌ Load error: ${failure.message}');
         final localResult = getTodosUseCase();
         localResult.fold(
-          (e) {
-            _status = TodoStatus.error;
-            _errorMessage = failure.message;
-          },
-          (todos) {
-            _todos = _toEntityList(todos);
-            _status = TodoStatus.success;
-          },
+          (e) { _status = TodoStatus.error; _errorMessage = failure.message; },
+          (todos) { _todos = _toList(todos); _status = TodoStatus.success; },
         );
       },
       (todos) {
-        _todos = _toEntityList(todos);
+        _todos = _toList(todos);
         _status = TodoStatus.success;
         debugPrint('✅ Loaded ${_todos.length} todos');
       },
@@ -78,19 +95,18 @@ class TodosProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ─── Add ──────────────────────────────────────────────────
+  // ── Add ───────────────────────────────────────────────────
   Future<void> addTodo({
     required String title,
     required String description,
   }) async {
     final todo = TodoEntity(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      title: title,
+      id:          DateTime.now().millisecondsSinceEpoch.toString(),
+      title:       title,
       description: description,
-      createdAt: DateTime.now(),
+      createdAt:   DateTime.now(),
     );
-
-    _todos.add(todo); // ✅ works now — _todos is genuinely List<TodoEntity>
+    _todos.add(todo);
     notifyListeners();
 
     final result = await repository.addTodoRemote(todo);
@@ -101,110 +117,90 @@ class TodosProvider extends ChangeNotifier {
         _errorMessage = failure.message;
         notifyListeners();
         Future.delayed(const Duration(seconds: 2), () {
-          _errorMessage = null;
-          notifyListeners();
+          _errorMessage = null; notifyListeners();
         });
       },
-      (savedTodo) {
-        final index = _todos.indexWhere((t) => t.id == todo.id);
-        if (index != -1) _todos[index] = savedTodo;
-        debugPrint('✅ Saved: ${savedTodo.title}');
+      (saved) {
+        final i = _todos.indexWhere((t) => t.id == todo.id);
+        if (i != -1) _todos[i] = saved;
+        debugPrint('✅ Saved: ${saved.title}');
         notifyListeners();
       },
     );
   }
 
-  // ─── Edit ─────────────────────────────────────────────────
+  // ── Edit ──────────────────────────────────────────────────
   Future<void> editTodo({
     required String id,
     required String title,
     required String description,
   }) async {
-    final index = _todos.indexWhere((t) => t.id == id);
-    if (index == -1) return;
-    final oldTodo = _todos[index];
-    _todos[index] = oldTodo.copyWith(
-      title: title,
-      description: description,
-      createdAt: DateTime.now(),
-    );
+    final i = _todos.indexWhere((t) => t.id == id);
+    if (i == -1) return;
+    final old = _todos[i];
+    _todos[i] = old.copyWith(title: title, description: description,
+        createdAt: DateTime.now());
     notifyListeners();
 
-    final result = await repository.editTodoRemote(_todos[index]);
+    final result = await repository.editTodoRemote(_todos[i]);
     result.fold(
-      (failure) {
-        debugPrint('❌ Edit error: ${failure.message}');
-        _todos[index] = oldTodo;
-        notifyListeners();
-      },
-      (editedTodo) {
-        _todos[index] = editedTodo;
-        debugPrint('✅ Updated: ${editedTodo.title}');
-        notifyListeners();
-      },
+      (f) { _todos[i] = old; notifyListeners(); },
+      (e) { _todos[i] = e;   notifyListeners(); },
     );
   }
 
-  // ─── Delete ───────────────────────────────────────────────
+  // ── Delete ────────────────────────────────────────────────
   Future<void> deleteTodo(String id) async {
-    final index = _todos.indexWhere((t) => t.id == id);
-    if (index == -1) return;
-    final deletedTodo = _todos[index];
-    _todos.removeAt(index);
+    final i = _todos.indexWhere((t) => t.id == id);
+    if (i == -1) return;
+    final del = _todos[i];
+    _todos.removeAt(i);
     notifyListeners();
 
     final result = await repository.deleteTodoRemote(id);
     result.fold(
-      (failure) {
-        debugPrint('❌ Delete error: ${failure.message}');
-        _todos.insert(index, deletedTodo);
-        notifyListeners();
-      },
-      (_) {
-        debugPrint('✅ Deleted: $id');
-        notifyListeners();
-      },
+      (f) { _todos.insert(i, del); notifyListeners(); },
+      (_) { debugPrint('✅ Deleted: $id'); },
     );
   }
 
-  // ─── Toggle ───────────────────────────────────────────────
+  // ── Toggle ────────────────────────────────────────────────
   Future<void> toggleTodo(String id) async {
-    final index = _todos.indexWhere((t) => t.id == id);
-    if (index == -1) return;
-    final oldTodo = _todos[index];
-    _todos[index] = oldTodo.copyWith(isCompleted: !oldTodo.isCompleted);
+    final i = _todos.indexWhere((t) => t.id == id);
+    if (i == -1) return;
+    final old = _todos[i];
+    final completing = !old.isCompleted;
+
+    // ✅ Set completedAt optimistically
+    _todos[i] = old.copyWith(
+      isCompleted:  completing,
+      completedAt:  completing ? DateTime.now() : null,
+      clearCompletedAt: !completing,
+    );
     notifyListeners();
 
     final result = await repository.toggleTodoRemote(id);
     result.fold(
-      (failure) {
-        debugPrint('❌ Toggle error: ${failure.message}');
-        _todos[index] = oldTodo;
-        notifyListeners();
-      },
-      (updatedTodo) {
-        _todos[index] = updatedTodo;
-        debugPrint('✅ Toggled: $id');
-        notifyListeners();
-      },
+      (f) { _todos[i] = old; notifyListeners(); },
+      (u) { _todos[i] = u;   notifyListeners(); },
     );
   }
 
-  // ─── Re-add for undo ──────────────────────────────────────
+  // ── Re-add for undo ───────────────────────────────────────
   Future<void> reAddTodo(TodoEntity todo) async {
     _todos.add(todo);
     notifyListeners();
     final result = await repository.addTodoRemote(todo);
     result.fold(
-      (failure) {
-        _todos.removeWhere((t) => t.id == todo.id);
-        notifyListeners();
-      },
-      (savedTodo) {
-        final index = _todos.indexWhere((t) => t.id == todo.id);
-        if (index != -1) _todos[index] = savedTodo;
+      (f) { _todos.removeWhere((t) => t.id == todo.id); notifyListeners(); },
+      (s) {
+        final i = _todos.indexWhere((t) => t.id == todo.id);
+        if (i != -1) _todos[i] = s;
         notifyListeners();
       },
     );
   }
+
+  List<TodoEntity> _toList(List<dynamic> source) =>
+      List<TodoEntity>.of(source.cast<TodoEntity>());
 }

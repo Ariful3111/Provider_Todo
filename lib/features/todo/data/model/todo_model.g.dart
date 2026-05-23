@@ -11,20 +11,20 @@ class TodoModelAdapter extends TypeAdapter<TodoModel> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    // ✅ Actually use the fields map to construct the object
     return TodoModel(
       id:          fields[0] as String,
       title:       fields[1] as String,
       description: fields[2] as String,
       createdAt:   fields[3] as DateTime,
       isCompleted: fields[4] as bool? ?? false,
+      completedAt: fields[5] as DateTime?,   // ✅ nullable — old data = null
     );
   }
 
   @override
   void write(BinaryWriter writer, TodoModel obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(6)            // ✅ was 5, now 6 fields
       ..writeByte(0)
       ..write(obj.hiveId)
       ..writeByte(1)
@@ -34,7 +34,9 @@ class TodoModelAdapter extends TypeAdapter<TodoModel> {
       ..writeByte(3)
       ..write(obj.hiveCreatedAt)
       ..writeByte(4)
-      ..write(obj.hiveIsCompleted);
+      ..write(obj.hiveIsCompleted)
+      ..writeByte(5)
+      ..write(obj.hiveCompletedAt);  // ✅ NEW
   }
 
   @override

@@ -115,35 +115,38 @@ class TodoRemoteDataSourceImpl implements TodoRemoteDataSource {
 
   // ─── Toggle todo ──────────────────────────────────────────
   @override
-  Future<TodoModel> toggleTodo(String id) async {
-    try {
-      // First get current state
-      final current = await client
-          .from('todos')
-          .select()
-          .eq('id', id)
-          .eq('user_id', _userId)
-          .single();
-
-      final isCompleted = !(current['is_completed'] as bool);
-
-      // Then toggle
-      final response = await client
-          .from('todos')
-          .update({
-            'is_completed': isCompleted,
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .eq('id', id)
-          .eq('user_id', _userId)
-          .select()
-          .single();
-
-      return TodoModel.fromJson(response);
-    } on PostgrestException catch (e) {
-      throw ServerException(e.message);
-    } catch (e) {
-      throw ServerException(e.toString());
-    }
+Future<TodoModel> toggleTodo(String id) async {
+  try {
+    // Get current state
+    final current = await client
+        .from('todos')
+        .select()
+        .eq('id', id)
+        .eq('user_id', _userId)
+        .single();
+ 
+    final isCompleted = !(current['is_completed'] as bool);
+ 
+    // ✅ Set completedAt when completing, clear when uncompleting
+    final response = await client
+        .from('todos')
+        .update({
+          'is_completed': isCompleted,
+          'completed_at': isCompleted
+              ? DateTime.now().toIso8601String()
+              : null,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', id)
+        .eq('user_id', _userId)
+        .select()
+        .single();
+ 
+    return TodoModel.fromJson(response);
+  } on PostgrestException catch (e) {
+    throw ServerException(e.message);
+  } catch (e) {
+    throw ServerException(e.toString());
   }
+}
 }
