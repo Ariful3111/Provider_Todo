@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider_todo/core/constant/app_colors.dart';
+import 'package:provider_todo/core/shared/widgets/app_text.dart';
 
 class DateStrip extends StatefulWidget {
   final DateTime selectedDate;
@@ -18,147 +19,154 @@ class DateStrip extends StatefulWidget {
 }
 
 class _DateStripState extends State<DateStrip> {
-  late final ScrollController _scrollController;
+  late final ScrollController _sc;
 
-  // Generate 90 days: 45 before today → 45 after today
-  static const int _pastDays   = 45;
-  static const int _futureDays = 45;
-  static const int _total      = _pastDays + _futureDays + 1;
+  // 45 days before → 45 days after today = 91 total
+  static const _past = 45;
+  static const _future = 45;
+  static const _total = _past + _future + 1;
 
-  final DateTime _origin = () {
+  static DateTime get _todayMidnight {
     final n = DateTime.now();
     return DateTime(n.year, n.month, n.day);
-  }();
+  }
 
   late final List<DateTime> _dates;
 
-  // Item dimensions
-  double get _itemWidth  => 64.w;
-  double get _itemHeight => 72.h;
-  double get _spacing    => 8.w;
+  // Item layout
+  double get _w => 62.w;
+  double get _h => 74.h;
+  double get _gap => 8.w;
 
   @override
   void initState() {
     super.initState();
+    final origin = _todayMidnight;
     _dates = List.generate(
       _total,
-      (i) => _origin.subtract(Duration(days: _pastDays - i)),
+      (i) => origin.subtract(Duration(days: _past - i)),
     );
-    _scrollController = ScrollController();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSelected());
+    _sc = ScrollController();
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _scrollTo(widget.selectedDate),
+    );
   }
 
   @override
   void didUpdateWidget(DateStrip old) {
     super.didUpdateWidget(old);
-    if (old.selectedDate != widget.selectedDate) {
-      _scrollToSelected();
+    if (!_sameDay(old.selectedDate, widget.selectedDate)) {
+      _scrollTo(widget.selectedDate);
     }
   }
 
-  void _scrollToSelected() {
-    final index = _dates.indexWhere((d) =>
-        d.year  == widget.selectedDate.year  &&
-        d.month == widget.selectedDate.month &&
-        d.day   == widget.selectedDate.day);
-    if (index == -1) return;
+  @override
+  void dispose() {
+    _sc.dispose();
+    super.dispose();
+  }
 
-    final itemTotal = _itemWidth + _spacing;
-    final screenWidth = MediaQuery.of(context).size.width;
-    // Center selected item
-    final offset = (itemTotal * index) - (screenWidth / 2) + (itemTotal / 2);
+  bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 
-    _scrollController.animateTo(
-      offset.clamp(0.0, _scrollController.position.maxScrollExtent),
+  void _scrollTo(DateTime target) {
+    final idx = _dates.indexWhere((d) => _sameDay(d, target));
+    if (idx == -1) return;
+    if (!_sc.hasClients) return;
+
+    final screenW = MediaQuery.of(context).size.width;
+    final itemFull = _w + _gap;
+    final offset = (itemFull * idx) - (screenW - itemFull) / 2;
+
+    _sc.animateTo(
+      offset.clamp(0.0, _sc.position.maxScrollExtent),
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
   }
 
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  bool _isSelected(DateTime d) =>
-      d.year  == widget.selectedDate.year  &&
-      d.month == widget.selectedDate.month &&
-      d.day   == widget.selectedDate.day;
-
-  bool _isToday(DateTime d) {
-    final n = DateTime.now();
-    return d.year == n.year && d.month == n.month && d.day == n.day;
-  }
-
-  static const _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  static const _dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: _itemHeight,
+      height: _h,
       child: ListView.separated(
-        controller: _scrollController,
+        controller: _sc,
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.symmetric(horizontal: 20.w),
         physics: const BouncingScrollPhysics(),
         itemCount: _total,
-        separatorBuilder: (_, __) => SizedBox(width: _spacing),
-        itemBuilder: (context, index) {
-          final date     = _dates[index];
-          final selected = _isSelected(date);
-          final today    = _isToday(date);
+        separatorBuilder: (_, __) => SizedBox(width: _gap),
+        itemBuilder: (context, i) {
+          final date = _dates[i];
+          final selected = _sameDay(date, widget.selectedDate);
+          final isToday = _sameDay(date, _todayMidnight);
 
           return GestureDetector(
             onTap: () => widget.onDateSelected(date),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: _itemWidth,
+              padding: EdgeInsets.zero,
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeInOut,
+              width: _w,
               decoration: BoxDecoration(
-                color: selected
-                    ? AppColors.primaryColor
-                    : const Color(0xFFDEEAFF),
-                borderRadius: BorderRadius.circular(14.r),
+                color: selected ? AppColors.primaryColor : Color(0xFFEEF5FF),
+                borderRadius: BorderRadius.circular(12.r),
               ),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Day name
-                  Text(
-                    _days[date.weekday - 1],
-                    style: TextStyle(
-                      fontSize: 11.sp,
+                  Padding(
+                    padding: EdgeInsets.all(10.r),
+                    child: AppText(
+                      _dayNames[date.weekday - 1],
+                      fontSize: 10.sp,
                       fontWeight: FontWeight.w500,
                       color: selected
-                          ? Colors.white.withValues(alpha: 0.85)
-                          : const Color(0xFF7AAFD4),
+                          ? AppColors.whiteColor
+                          : Color(0xFF76B5FF),
                     ),
                   ),
                   SizedBox(height: 4.h),
-                  // Date number
-                  Text(
-                    '${date.day}',
-                    style: TextStyle(
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.bold,
-                      color: selected
-                          ? Colors.white
-                          : today
-                              ? AppColors.primaryColor
-                              : const Color(0xFF3A5A8C),
-                    ),
-                  ),
-                  // Today dot
-                  if (today && !selected)
-                    Container(
-                      width: 5.r,
-                      height: 5.r,
-                      margin: EdgeInsets.only(top: 3.h),
-                      decoration: const BoxDecoration(
-                        color: AppColors.primaryColor,
-                        shape: BoxShape.circle,
+                  Container(
+                    padding: EdgeInsets.all(10.r),
+                    width: MediaQuery.widthOf(context),
+                    decoration: BoxDecoration(
+                      color: selected ? Color(0xFF318FFF) : Color(0xFFDDECFF),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(10.r),
+                        topRight: Radius.circular(10.r),
                       ),
                     ),
+                    child: Center(
+                      child: AppText(
+                        '${date.day}',
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w500,
+                        color: selected
+                            ? Colors.white
+                            : isToday
+                            ? AppColors.primaryColor
+                            : Color(0xFF3A5A8C),
+                      ),
+                    ),
+                  ),
+
+                  // Dot under today (when not selected)
+                  // SizedBox(height: 4.h),
+                  // AnimatedOpacity(
+                  //   duration: const Duration(milliseconds: 200),
+                  //   opacity: isToday && !selected ? 1.0 : 0.0,
+                  //   child: Container(
+                  //     width: 5.r,
+                  //     height: 5.r,
+                  //     decoration: const BoxDecoration(
+                  //       color: AppColors.primaryColor,
+                  //       shape: BoxShape.circle,
+                  //     ),
+                  //   ),
+                  // ),
                 ],
               ),
             ),

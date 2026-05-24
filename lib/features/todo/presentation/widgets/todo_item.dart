@@ -28,10 +28,6 @@ class TodoItem extends StatelessWidget {
             foregroundColor: Colors.white,
             icon: Icons.delete_outline_rounded,
             label: 'Delete',
-            borderRadius: BorderRadius.only(
-              topRight: Radius.circular(12.r),
-              bottomRight: Radius.circular(12.r),
-            ),
           ),
         ],
       ),
@@ -44,10 +40,6 @@ class TodoItem extends StatelessWidget {
             foregroundColor: Colors.white,
             icon: Icons.edit_outlined,
             label: 'Edit',
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(12.r),
-              bottomLeft: Radius.circular(12.r),
-            ),
           ),
         ],
       ),
@@ -56,8 +48,8 @@ class TodoItem extends StatelessWidget {
   }
 
   void _deleteTodo(BuildContext context) {
-    final provider  = context.read<TodosProvider>();
-    final snapshot  = todoEntity;
+    final provider = context.read<TodosProvider>();
+    final snapshot = todoEntity;
     provider.deleteTodo(todoEntity.id);
 
     ScaffoldMessenger.of(context)
@@ -86,6 +78,7 @@ class TodoItem extends StatelessWidget {
   }
 }
 
+// ── Todo item content — pixel perfect match to Image 2 ────────
 class _TodoItemContent extends StatelessWidget {
   final TodoEntity todoEntity;
   const _TodoItemContent({required this.todoEntity});
@@ -94,12 +87,18 @@ class _TodoItemContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => context.read<TodosProvider>().toggleTodo(todoEntity.id),
+      behavior: HitTestBehavior.opaque,
       child: Container(
         color: Colors.white,
-        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+        // ✅ Matches design: generous vertical padding, left-aligned
+        padding: EdgeInsets.symmetric(
+          horizontal: 20.w,
+          vertical: 18.h,
+        ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // ── Custom Checkbox ──────────────────────────
+            // ✅ Rounded square checkbox — light blue unfilled, blue filled
             _RoundedCheckbox(
               checked: todoEntity.isCompleted,
               onTap: () =>
@@ -107,19 +106,20 @@ class _TodoItemContent extends StatelessWidget {
             ),
             SizedBox(width: 16.w),
 
-            // ── Title ────────────────────────────────────
+            // ✅ Title — matches design font weight and color
             Expanded(
               child: Text(
                 todoEntity.title,
                 style: TextStyle(
                   fontSize: 15.sp,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w400, // ✅ regular weight like design
                   color: todoEntity.isCompleted
                       ? const Color(0xFF9CA3AF)
-                      : const Color(0xFF1A1D2E),
+                      : const Color(0xFF111827), // ✅ near-black like design
                   decoration: todoEntity.isCompleted
                       ? TextDecoration.lineThrough
                       : TextDecoration.none,
+                  decorationColor: const Color(0xFF9CA3AF),
                 ),
               ),
             ),
@@ -130,7 +130,7 @@ class _TodoItemContent extends StatelessWidget {
   }
 }
 
-// ── Custom rounded-square checkbox ────────────────────────────
+// ── Rounded square checkbox — matches Image 2 exactly ─────────
 class _RoundedCheckbox extends StatelessWidget {
   final bool checked;
   final VoidCallback onTap;
@@ -141,19 +141,23 @@ class _RoundedCheckbox extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: 26.r,
-        height: 26.r,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeInOut,
+        width: 28.r,
+        height: 28.r,
         decoration: BoxDecoration(
+          // ✅ Light blue when unchecked, primary blue when checked
           color: checked
               ? AppColors.primaryColor
-              : const Color(0xFFDEEAFF),
-          borderRadius: BorderRadius.circular(7.r),
+              : const Color(0xFFDAEAFF),
+          borderRadius: BorderRadius.circular(8.r),
         ),
         child: checked
-            ? Icon(Icons.check_rounded,
-                size: 16.sp,
-                color: Colors.white)
+            ? Icon(
+                Icons.check_rounded,
+                size: 17.sp,
+                color: Colors.white,
+              )
             : null,
       ),
     );
